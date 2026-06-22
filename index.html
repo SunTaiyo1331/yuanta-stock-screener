@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧選股站</title>
+    <!-- ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-bg': '#0a0c10',
+                        'card-bg': 'rgba(23, 27, 36, 0.7)',
+                        'card-border': 'rgba(255, 255, 255, 0.08)',
+                        'accent-primary': '#3b82f6',
+                        'success': '#10b981',
+                        'danger': '#ef4444'
+                    },
+                    animation: {
+                        'marquee': 'marquee 40s linear infinite',
+                        'fade-in': 'fadeIn 1s ease-out forwards'
+                    },
+                    keyframes: {
+                        marquee: {
+                            '0%': { transform: 'translateX(0%)' },
+                            '100%': { transform: 'translateX(-50%)' }
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        'glass': '0 4px 30px rgba(0, 0, 0, 0.1)',
+                        'glow': '0 0 20px rgba(59, 130, 246, 0.4)',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=2">
+</head>
+<body class="bg-brand-bg text-gray-200 min-h-screen antialiased overflow-x-hidden">
+    <!-- 背景裝飾光暈 -->
+    <div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-accent-primary opacity-20 blur-[120px] pointer-events-none z-0"></div>
+    <div class="fixed bottom-[-10%] right-[-10%] w-[30%] h-[30%] rounded-full bg-purple-600 opacity-20 blur-[100px] pointer-events-none z-0"></div>
+
+    <!-- 首頁視圖 (Landing View) -->
+    <div id="landing-view" class="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-12">
+        
+        <!-- 全球指數區塊 (攤開顯示在標題上方) -->
+        <div class="w-full max-w-7xl mb-12">
+            <div id="indices-ticker" class="flex flex-wrap justify-center gap-4">
+                <!-- 指數卡片將由 JS 注入 -->
+            </div>
+        </div>
+
+        <h1 class="text-5xl md:text-7xl font-extrabold text-white tracking-tight mb-12 animate-fade-in text-center">
+            智慧選股站
+        </h1>
+
+        <div class="flex flex-col md:flex-row gap-6 items-center">
+            <button onclick="selectStrategy('tea')" class="w-64 py-5 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-xl hover:scale-105 transition-transform shadow-glow">
+                🍵 茶葉智慧站
+            </button>
+            <button onclick="promptPassword('advanced')" class="w-64 py-5 rounded-2xl bg-gradient-to-r from-yellow-500 to-orange-600 text-white font-bold text-xl hover:scale-105 transition-transform shadow-glow flex justify-center items-center gap-2">
+                💰 進階金庫 <span class="text-yellow-200 text-sm border border-yellow-200/50 rounded px-1.5 py-0.5">$</span>
+            </button>
+        </div>
+        
+        <!-- 進階金庫展開選單 -->
+        <div id="advanced-menu" class="hidden mt-8 flex-col md:flex-row gap-4 items-center animate-fade-in bg-gray-900/60 border border-gray-800 p-6 rounded-2xl backdrop-blur-md">
+            <h2 class="text-gray-400 font-semibold mb-4 md:mb-0 md:mr-4">解鎖成功，請選擇策略：</h2>
+            <button onclick="selectStrategy('test')" class="px-8 py-3 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-500 transition-colors shadow-glow">
+                🧪 測試策略
+            </button>
+            <button onclick="selectStrategy('long_etf')" class="px-8 py-3 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-500 transition-colors shadow-glow">
+                📈 長期ETF區
+            </button>
+            <button onclick="selectStrategy('high_div')" class="px-8 py-3 rounded-xl bg-pink-600 text-white font-bold hover:bg-pink-500 transition-colors shadow-glow">
+                💸 高股息ETF區
+            </button>
+        </div>
+
+        <!-- 止月隱藏按鈕 (右下角透明區域) -->
+        <div onclick="promptPassword('moon')" class="fixed bottom-0 right-0 w-20 h-20 cursor-pointer z-50 bg-white opacity-0 hover:opacity-5 transition-opacity" title=" "></div>
+    </div>
+
+    <!-- 密碼輸入框 (Modal) -->
+    <div id="password-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div class="bg-card-bg border border-card-border p-8 rounded-2xl shadow-2xl max-w-sm w-full mx-4">
+            <h3 class="text-2xl font-bold text-white mb-6 text-center">請輸入通行碼</h3>
+            <input type="password" id="password-input" class="w-full bg-[#0e121a] border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-accent-primary mb-6" placeholder="Password" onkeypress="handleKeyPress(event)">
+            <p id="password-error" class="text-red-500 text-sm mb-4 hidden text-center">密碼錯誤，請重試</p>
+            <div class="flex gap-4">
+                <button onclick="closePasswordModal()" class="flex-1 py-3 rounded-lg bg-gray-800 text-gray-300 font-semibold hover:bg-gray-700 transition-colors">取消</button>
+                <button onclick="verifyPassword()" class="flex-1 py-3 rounded-lg bg-accent-primary text-white font-semibold hover:bg-blue-600 transition-colors shadow-glow">確認</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 儀表板視圖 (Dashboard View) -->
+    <div id="dashboard-view" class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 hidden">
+        <!-- 標頭區塊 -->
+        <header class="mb-12 flex flex-col md:flex-row md:justify-between md:items-end gap-6 animate-fade-in">
+            <div>
+                <button onclick="goBackToLanding()" class="text-accent-primary hover:text-white mb-4 flex items-center gap-2 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    回首頁
+                </button>
+                <div class="inline-block px-3 py-1 rounded-full border border-accent-primary/30 bg-accent-primary/10 text-accent-primary text-xs font-semibold tracking-wider uppercase mb-4 backdrop-blur-sm shadow-glow">
+                    Daily Stock Screener
+                </div>
+                <h1 id="dashboard-title" class="text-4xl md:text-5xl font-extrabold text-white tracking-tight mb-3">
+                    策略結果
+                </h1>
+            </div>
+            <div class="text-right">
+                <p class="text-sm text-gray-500 mb-1">最後更新時間</p>
+                <div id="update-time" class="text-lg font-mono font-medium text-gray-300">載入中...</div>
+            </div>
+        </header>
+
+        <!-- 股票列表容器 -->
+        <div id="loading" class="flex justify-center items-center py-20 hidden">
+            <div class="loader"></div>
+        </div>
+
+        <div id="stock-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden">
+            <!-- 卡片由 JS 動態生成 -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="empty-state hidden">
+            <div class="empty-icon">🔍</div>
+            <h2>今日無符合條件的標的</h2>
+            <p>目前沒有股票同時滿足此策略的嚴苛條件，請明日再回來查看。</p>
+        </div>
+
+        <!-- Table Container (For ETFs) -->
+        <div id="table-container" class="hidden mt-8">
+            <div class="overflow-x-auto rounded-2xl border border-gray-800 bg-gray-900/60 backdrop-blur-md shadow-2xl">
+                <table id="etf-table" class="w-full text-left border-collapse whitespace-nowrap">
+                    <thead id="etf-table-head" class="bg-gray-800/80 border-b border-gray-700 text-gray-300">
+                        <!-- Headers will be injected here -->
+                    </thead>
+                    <tbody id="etf-table-body" class="divide-y divide-gray-800/50">
+                        <!-- Rows will be injected here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 範本: 股票卡片 -->
+    <template id="stock-card-template">
+        <div class="stock-card group relative rounded-2xl bg-card-bg border border-card-border p-6 backdrop-blur-md overflow-hidden transition-all duration-300 hover:shadow-glow hover:-translate-y-1">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h3 class="text-2xl font-bold text-white stock-name tracking-wide"></h3>
+                    <p class="text-gray-400 font-mono text-sm stock-symbol mt-1"></p>
+                </div>
+                <div class="text-right">
+                    <div class="text-3xl font-bold text-white stock-price font-mono"></div>
+                    <div class="text-sm font-semibold stock-change flex items-center justify-end mt-1 font-mono">
+                        <span class="change-icon mr-1"></span>
+                        <span class="change-value"></span>
+                        <span class="change-percent ml-1 text-xs px-2 py-0.5 rounded-full bg-opacity-20"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="h-px w-full bg-gray-800 my-4"></div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div class="metric-item">
+                    <div class="text-xs text-gray-500 mb-1">成交量</div>
+                    <div class="font-mono text-white text-lg"><span class="stock-volume font-bold"></span> 張</div>
+                </div>
+                <div class="metric-item">
+                    <div class="text-xs text-accent-primary mb-1">💡 建議購入價</div>
+                    <div class="font-mono text-accent-primary font-bold text-lg"><span class="stock-suggest-price"></span></div>
+                </div>
+            </div>
+            
+            <!-- ECharts 專業圖表容器 -->
+            <div class="chart-container mt-6 w-full h-[350px] rounded-lg bg-[#0e121a] border border-gray-800"></div>
+        </div>
+    </template>
+
+    <script src="app.js?v=9"></script>
+</body>
+</html>
