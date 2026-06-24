@@ -11,6 +11,12 @@ async function fetchStockData() {
         const response = await fetch('data.json?v=' + new Date().getTime());
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         cachedData = await response.json();
+        
+        // 更新最後更新時間
+        if (cachedData.updated_at) {
+            document.getElementById('last-updated').textContent = `最後更新時間：${cachedData.updated_at}`;
+        }
+        
         renderIndices(cachedData.data.indices);
     } catch (error) {
         console.error("無法載入股票資料:", error);
