@@ -8,7 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function fetchStockData() {
     try {
-        const response = await fetch('data.json?v=' + new Date().getTime());
+        const url = 'https://raw.githubusercontent.com/SunTaiyo1331/yuanta-stock-screener/main/data.json?t=' + new Date().getTime();
+        const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         cachedData = await response.json();
         
@@ -20,6 +21,12 @@ async function fetchStockData() {
         renderIndices(cachedData.data.indices);
     } catch (error) {
         console.error("無法載入股票資料:", error);
+        document.getElementById('last-updated').textContent = `資料載入失敗，請確認網路連線 (${error.message})`;
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl) {
+            loadingEl.textContent = `載入失敗: ${error.message}`;
+            loadingEl.classList.remove('hidden');
+        }
     }
 }
 
@@ -108,10 +115,17 @@ function selectStrategy(strategy) {
         document.getElementById('empty-state').classList.add('hidden');
         
         // 如果資料還沒回來，稍微等一下再試
+        let waitCount = 0;
         const checkData = setInterval(() => {
             if (cachedData) {
                 clearInterval(checkData);
                 renderStrategyData(strategy);
+            } else {
+                waitCount++;
+                if (waitCount > 20) { // wait up to 10 seconds
+                    clearInterval(checkData);
+                    document.getElementById('loading').textContent = '載入逾時，資料可能發生錯誤，請重新整理網頁。';
+                }
             }
         }, 500);
     } else {
