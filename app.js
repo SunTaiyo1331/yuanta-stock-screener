@@ -199,7 +199,7 @@ function renderStocks(stocks) {
         clone.querySelector('.stock-name').textContent = stock.name;
         clone.querySelector('.stock-symbol').textContent = stock.symbol;
         
-        const formatPrice = (num) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num);
+        const formatPrice = (num) => (num !== null && num !== undefined) ? new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num) : '-';
         clone.querySelector('.stock-price').textContent = formatPrice(stock.price);
         
         const changeEl = clone.querySelector('.stock-change');
@@ -207,7 +207,13 @@ function renderStocks(stocks) {
         const changePercentEl = clone.querySelector('.change-percent');
         const changeIconEl = clone.querySelector('.change-icon');
         
-        if (stock.change > 0) {
+        if (stock.change === null || stock.change === undefined) {
+            changeEl.classList.add('text-gray-400');
+            changePercentEl.classList.add('bg-gray-800', 'text-gray-300');
+            changeValueEl.textContent = '-';
+            changePercentEl.textContent = '-';
+            changeIconEl.textContent = '-';
+        } else if (stock.change > 0) {
             changeEl.classList.add('text-tw-up');
             changePercentEl.classList.add('bg-tw-up');
             changeValueEl.textContent = `+${formatPrice(stock.change)}`;
@@ -227,9 +233,10 @@ function renderStocks(stocks) {
             changeIconEl.textContent = '-';
         }
         
-        clone.querySelector('.stock-volume').textContent = new Intl.NumberFormat('en-US').format(stock.volume);
+        let volVal = (stock.volume !== null && stock.volume !== undefined) ? new Intl.NumberFormat('en-US').format(stock.volume) : '-';
+        clone.querySelector('.stock-volume').textContent = volVal;
         
-        if (stock.suggested_buy_price) {
+        if (stock.suggested_buy_price !== null && stock.suggested_buy_price !== undefined) {
             clone.querySelector('.stock-suggest-price').textContent = formatPrice(stock.suggested_buy_price);
         } else {
             clone.querySelector('.stock-suggest-price').textContent = '-';
@@ -267,16 +274,19 @@ function renderETFTable(strategy, etfs) {
     
     // Generate rows
     etfs.forEach(etf => {
-        let ytdColor = etf.ytd >= 0 ? 'text-danger' : 'text-success';
-        let ytdVal = etf.ytd > 0 ? `+${etf.ytd.toFixed(2)}%` : `${etf.ytd.toFixed(2)}%`;
+        let ytdColor = (etf.ytd !== null && etf.ytd !== undefined && etf.ytd >= 0) ? 'text-danger' : 'text-success';
+        let ytdVal = (etf.ytd !== null && etf.ytd !== undefined) ? (etf.ytd > 0 ? `+${etf.ytd.toFixed(2)}%` : `${etf.ytd.toFixed(2)}%`) : '-';
         
-        let lastYearColor = etf.last_year_perf >= 0 ? 'text-danger' : 'text-success';
-        let lastYearVal = etf.last_year_perf > 0 ? `+${etf.last_year_perf.toFixed(2)}%` : `${etf.last_year_perf.toFixed(2)}%`;
+        let lastYearColor = (etf.last_year_perf !== null && etf.last_year_perf !== undefined && etf.last_year_perf >= 0) ? 'text-danger' : 'text-success';
+        let lastYearVal = (etf.last_year_perf !== null && etf.last_year_perf !== undefined) ? (etf.last_year_perf > 0 ? `+${etf.last_year_perf.toFixed(2)}%` : `${etf.last_year_perf.toFixed(2)}%`) : '-';
+
+        
+        let priceVal = (etf.price !== null && etf.price !== undefined) ? etf.price : '-';
         
         let rowHtml = `<tr class="border-b border-gray-800 hover:bg-white/5 transition-colors">
             <td class="py-4 px-6 font-mono text-gray-400">${etf.symbol}</td>
             <td class="py-4 px-6 font-bold text-white text-lg">${etf.name}</td>
-            <td class="py-4 px-6 font-mono text-right text-lg">${etf.price}</td>`;
+            <td class="py-4 px-6 font-mono text-right text-lg">${priceVal}</td>`;
             
         if (strategy === 'long_etf') {
             rowHtml += `<td class="py-4 px-6 font-mono font-bold text-right ${lastYearColor}">${lastYearVal}</td>`;
@@ -285,10 +295,11 @@ function renderETFTable(strategy, etfs) {
             let yieldColor = 'text-accent-primary';
             let ytdYieldColor = 'text-pink-400';
             rowHtml += `<td class="py-4 px-6 text-center"><span class="px-3 py-1 rounded-full bg-gray-800 border border-gray-700 text-xs font-semibold tracking-widest">${etf.div_freq}</span></td>`;
-            rowHtml += `<td class="py-4 px-6 font-mono font-bold text-right ${yieldColor}">${etf.last_year_yield.toFixed(2)}%</td>`;
+            let yieldVal = (etf.last_year_yield !== null && etf.last_year_yield !== undefined) ? `${etf.last_year_yield.toFixed(2)}%` : '-';
+            rowHtml += `<td class="py-4 px-6 font-mono font-bold text-right ${yieldColor}">${yieldVal}</td>`;
             // This expects etf.ytd_yield to be populated
-            let ytdYieldVal = etf.ytd_yield ? etf.ytd_yield.toFixed(2) : "0.00";
-            rowHtml += `<td class="py-4 px-6 font-mono font-bold text-right ${ytdYieldColor}">${ytdYieldVal}%</td>`;
+            let ytdYieldVal = (etf.ytd_yield !== null && etf.ytd_yield !== undefined) ? `${etf.ytd_yield.toFixed(2)}%` : "-";
+            rowHtml += `<td class="py-4 px-6 font-mono font-bold text-right ${ytdYieldColor}">${ytdYieldVal}</td>`;
             rowHtml += `<td class="py-4 px-6 font-mono font-bold text-right ${lastYearColor}">${lastYearVal}</td>`;
             rowHtml += `<td class="py-4 px-6 font-mono font-bold text-right ${ytdColor}">${ytdVal}</td>`;
         }
