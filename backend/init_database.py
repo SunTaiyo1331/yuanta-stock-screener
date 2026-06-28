@@ -24,6 +24,16 @@ def create_table():
             PRIMARY KEY (date, symbol)
         )
     ''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS screened_history (
+            date TEXT,
+            symbol TEXT,
+            name TEXT,
+            screened_price REAL,
+            strategy TEXT,
+            PRIMARY KEY (date, symbol, strategy)
+        )
+    ''')
     conn.commit()
     conn.close()
 
