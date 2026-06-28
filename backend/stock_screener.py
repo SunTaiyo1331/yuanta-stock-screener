@@ -456,7 +456,8 @@ if __name__ == "__main__":
         results = []
         for idx in indices_list:
             try:
-                df = yf.download(idx['symbol'], period='5d', progress=False)
+                period_to_fetch = '6mo' if idx['symbol'] == '^TWII' else '5d'
+                df = yf.download(idx['symbol'], period=period_to_fetch, progress=False)
                 if not df.empty:
                     if hasattr(df.columns, 'levels'):
                         df.columns = df.columns.droplevel(1)
@@ -464,17 +465,87 @@ if __name__ == "__main__":
                     prev = float(df['Close'].iloc[-2]) if len(df) > 1 else current
                     change = current - prev
                     change_percent = (change / prev) * 100 if prev else 0
-                    results.append({
+                    
+                    item = {
                         "name": idx['name'],
                         "price": round(current, 2),
                         "change": round(change, 2),
                         "change_percent": round(change_percent, 2)
-                    })
+                    }
+                    
+                    if idx['symbol'] == '^TWII':
+                        df['ma5'] = df['Close'].rolling(window=5).mean()
+                        df['ma20'] = df['Close'].rolling(window=20).mean()
+                        history_data = []
+                        chart_df = df.tail(60)
+                        for d, row in chart_df.iterrows():
+                            history_data.append({
+                                "date": d.strftime('%Y-%m-%d'),
+                                "open": round(float(row['Open']), 2),
+                                "close": round(float(row['Close']), 2),
+                                "low": round(float(row['Low']), 2),
+                                "high": round(float(row['High']), 2),
+                                "volume": int(row['Volume']),
+                                "ma5": round(float(row['ma5']), 2) if not pd.isna(row['ma5']) else None,
+                                "ma20": round(float(row['ma20']), 2) if not pd.isna(row['ma20']) else None
+                            })
+                        item["history"] = history_data
+                        
+                    results.append(item)
             except Exception as e:
                 print(f"Error fetching index {idx['symbol']}: {e}")
         return results
 
     indices_res = fetch_indices()
+
+    print("處理篩選歷史與統計...")
+    today_str = (datetime.utcnow() + timedelta(hours=8)).strftime("%Y-%m-%d")
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Insert today's data
+    for strat, records in [('tea', data['tea']), ('test', data['test']), ('moon', data['moon'])]:
+        for rec in records:
+            cursor.execute('''
+                INSERT OR IGNORE INTO screened_history (date, symbol, name, screened_price, strategy)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (today_str, rec['symbol'], rec['name'], rec['price'], strat))
+            
+    conn.commit()
+    
+    # Delete history older than 30 days
+    thirty_days_ago = (datetime.utcnow() + timedelta(hours=8) - timedelta(days=30)).strftime("%Y-%m-%d")
+    cursor.execute("DELETE FROM screened_history WHERE date < ?", (thirty_days_ago,))
+    conn.commit()
+    
+    # Fetch all history to build statistics
+    cursor.execute("SELECT date, symbol, name, screened_price, strategy FROM screened_history ORDER BY date DESC")
+    history_records = cursor.fetchall()
+    
+    # Query current prices
+    cursor.execute("SELECT symbol, close FROM daily_quotes WHERE date = (SELECT MAX(date) FROM daily_quotes)")
+    latest_prices = {row[0]: row[1] for row in cursor.fetchall()}
+    
+    statistics = {'tea': [], 'test': [], 'moon': []}
+    for row in history_records:
+        r_date, r_symbol, r_name, r_price, r_strat = row
+        current_price = latest_prices.get(r_symbol)
+        
+        perf = None
+        if current_price is not None and r_price is not None and r_price > 0:
+            perf = round(((current_price - r_price) / r_price) * 100, 2)
+            
+        if r_strat in statistics:
+            statistics[r_strat].append({
+                "date": r_date,
+                "symbol": r_symbol,
+                "name": r_name,
+                "screened_price": round(r_price, 2) if r_price else None,
+                "current_price": round(current_price, 2) if current_price else None,
+                "performance": perf
+            })
+            
+    conn.close()
 
     print("匯出資料至 JSON...")
     output = {
@@ -485,7 +556,8 @@ if __name__ == "__main__":
             "moon": sorted(data['moon'], key=lambda x: x['symbol']),
             "long_etf": long_etfs_res,
             "high_div": high_div_etfs_res,
-            "indices": indices_res
+            "indices": indices_res,
+            "statistics": statistics
         }
     }
     
