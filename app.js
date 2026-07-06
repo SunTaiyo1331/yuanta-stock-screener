@@ -183,49 +183,6 @@ function renderTaiexChart(idx) {
     window.addEventListener('resize', () => myChart.resize());
 }
 
-function promptPassword(strategy) {
-    currentPendingStrategy = strategy;
-    document.getElementById('password-input').value = '';
-    document.getElementById('password-error').classList.add('hidden');
-    document.getElementById('password-modal').classList.remove('hidden');
-    setTimeout(() => document.getElementById('password-input').focus(), 100);
-}
-
-function closePasswordModal() {
-    document.getElementById('password-modal').classList.add('hidden');
-    currentPendingStrategy = null;
-}
-
-function handleKeyPress(event) {
-    if (event.key === 'Enter') {
-        verifyPassword();
-    }
-}
-
-function verifyPassword() {
-    const pwd = document.getElementById('password-input').value;
-    
-    let isCorrect = false;
-    if (currentPendingStrategy === 'advanced' && pwd === '55769+') {
-        isCorrect = true;
-    } else if (currentPendingStrategy === 'moon' && pwd === '9527+') {
-        isCorrect = true;
-    }
-    
-    if (isCorrect) {
-        const strategy = currentPendingStrategy;
-        closePasswordModal();
-        if (strategy === 'advanced') {
-            document.getElementById('advanced-menu').classList.remove('hidden');
-            // Hide the password button if desired, or just leave it
-            document.querySelector('button[onclick="promptPassword(\\\'advanced\\\')"]').classList.add('hidden');
-        } else {
-            selectStrategy(strategy);
-        }
-    } else {
-        document.getElementById('password-error').classList.remove('hidden');
-    }
-}
 
 function selectStrategy(strategy) {
     document.getElementById('landing-view').classList.add('hidden');
@@ -237,7 +194,9 @@ function selectStrategy(strategy) {
     else if (strategy === 'moon') titleEl.textContent = '🌙 止月隱藏策略';
     else if (strategy === 'long_etf') titleEl.textContent = '📈 長期ETF區';
     else if (strategy === 'high_div') titleEl.textContent = '💸 高股息ETF區';
-    else if (strategy === 'statistics') titleEl.textContent = '📊 策略統計區';
+    
+    const floatingBtn = document.getElementById('floating-home-btn');
+    if (floatingBtn) floatingBtn.classList.remove('hidden');
     
     if (!cachedData) {
         document.getElementById('loading').classList.remove('hidden');
@@ -266,6 +225,8 @@ function selectStrategy(strategy) {
 function goBackToLanding() {
     document.getElementById('dashboard-view').classList.add('hidden');
     document.getElementById('landing-view').classList.remove('hidden');
+    const floatingBtn = document.getElementById('floating-home-btn');
+    if (floatingBtn) floatingBtn.classList.add('hidden');
 }
 
 function renderStrategyData(strategy) {
@@ -285,20 +246,8 @@ function renderStrategyData(strategy) {
     const grid = document.getElementById('stock-grid');
     const emptyState = document.getElementById('empty-state');
     const tableContainer = document.getElementById('table-container');
-    const statContainer = document.getElementById('statistics-container');
     
     grid.innerHTML = ''; // Clear previous content
-    
-    if (strategy === 'statistics') {
-        tableContainer.classList.add('hidden');
-        grid.classList.add('hidden');
-        emptyState.classList.add('hidden');
-        if (statContainer) statContainer.classList.remove('hidden');
-        renderStatistics(cachedData.data.statistics);
-        return;
-    }
-    
-    if (statContainer) statContainer.classList.add('hidden');
     
     const stocks = cachedData.data[strategy];
     
@@ -325,85 +274,6 @@ function renderStrategyData(strategy) {
             emptyState.classList.remove('hidden');
         }
     }
-}
-
-function renderStatistics(stats) {
-    const container = document.getElementById('statistics-content');
-    if (!container) return;
-    
-    if (!stats) {
-        container.innerHTML = '<p class="text-gray-400">尚無統計資料。</p>';
-        return;
-    }
-    
-    const renderTable = (strategyKey, title, desc, data) => {
-        if (!data || data.length === 0) return '';
-        
-        let rowsHtml = '';
-        data.forEach(item => {
-            const currentPrice = item.current_price !== null ? item.current_price.toFixed(2) : '-';
-            const screenedPrice = item.screened_price !== null ? item.screened_price.toFixed(2) : '-';
-            
-            let perfHtml = '-';
-            if (item.performance !== null) {
-                const isUp = item.performance >= 0;
-                const color = isUp ? 'text-danger' : 'text-success';
-                const sign = isUp ? '+' : '';
-                perfHtml = `<span class="${color} font-bold">${sign}${item.performance.toFixed(2)}%</span>`;
-            }
-            
-            const dateTooltip = item.all_dates && item.all_dates.length > 1 
-                ? `title="所有篩選日期：&#10;${item.all_dates.join('&#10;')}" class="py-3 px-4 font-mono text-right text-gray-400 cursor-help underline decoration-dashed decoration-gray-500"`
-                : `class="py-3 px-4 font-mono text-right text-gray-400"`;
-                
-            const badge = item.all_dates && item.all_dates.length > 1 
-                ? `<span class="text-xs bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded-full ml-1">${item.all_dates.length}次</span>` 
-                : '';
-
-            rowsHtml += `
-                <tr class="border-b border-gray-800 hover:bg-white/5 transition-colors">
-                    <td class="py-3 px-4 font-mono text-gray-400">${item.symbol}</td>
-                    <td class="py-3 px-4 text-white font-semibold">${item.name}</td>
-                    <td class="py-3 px-4 font-mono text-right text-white">${currentPrice}</td>
-                    <td ${dateTooltip}>${item.date} ${badge}</td>
-                    <td class="py-3 px-4 font-mono text-right text-gray-400">${screenedPrice}</td>
-                    <td class="py-3 px-4 font-mono text-right">${perfHtml}</td>
-                </tr>
-            `;
-        });
-        
-        return `
-            <div class="bg-gray-900/40 border border-gray-800 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
-                <h3 class="text-2xl font-bold text-white mb-2 flex items-center gap-3">
-                    ${title} <span class="px-3 py-1 bg-gray-800 rounded-full text-sm font-normal text-gray-400">近30日歷史</span>
-                </h3>
-                <p class="text-gray-400 mb-6 text-sm bg-black/20 p-4 rounded-lg border border-gray-800/50">${desc}</p>
-                <div class="overflow-x-auto rounded-xl border border-gray-800">
-                    <table class="w-full whitespace-nowrap">
-                        <thead class="bg-gray-800/80 text-gray-400 text-sm">
-                            <tr>
-                                <th class="py-3 px-4 text-left font-semibold rounded-tl-lg">代號</th>
-                                <th class="py-3 px-4 text-left font-semibold">名稱</th>
-                                <th class="py-3 px-4 text-right font-semibold">現在股價</th>
-                                <th class="py-3 px-4 text-right font-semibold">篩選出的日期</th>
-                                <th class="py-3 px-4 text-right font-semibold">篩選出時的股價</th>
-                                <th class="py-3 px-4 text-right font-semibold rounded-tr-lg">迄今績效</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-800">
-                            ${rowsHtml}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        `;
-    };
-    
-    container.innerHTML = `
-        ${renderTable('tea', '🍵 茶葉智慧站', '篩選邏輯：股價大於 60 日均線、248 日均線，且近 60 日內外資與投信皆有買超佈局的優質大型股。', stats['tea'])}
-        ${renderTable('test', '🧪 測試策略', '篩選邏輯：符合特定技術面與籌碼面條件，正處於測試階段的短線爆發型標的。', stats['test'])}
-        ${renderTable('moon', '🌙 止月隱藏策略', '篩選邏輯：利用布林通道與成交量量縮，尋找底部反轉或盤整突破邊緣的隱藏飆股。', stats['moon'])}
-    `;
 }
 
 function renderStocks(stocks) {
