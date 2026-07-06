@@ -39,7 +39,7 @@ def get_db_data():
     conn.close()
     return df
 
-def check_cumulative_yoy_3_months(symbol):
+def check_ytd_yoy(symbol):
     try:
         clean_symbol = symbol.replace('.TW', '').replace('.TWO', '')
         url = f"https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockMonthRevenue&data_id={clean_symbol}&start_date=2024-01-01"
@@ -48,23 +48,24 @@ def check_cumulative_yoy_3_months(symbol):
         if data['status'] != 200 or not data['data']:
             return False 
         df_rev = pd.DataFrame(data['data'])
-        if len(df_rev) < 15:
+        if len(df_rev) < 12:
             return False
         df_rev = df_rev.sort_values(by=['revenue_year', 'revenue_month']).reset_index(drop=True)
-        latest_3_months = df_rev.tail(3)
         
-        current_sum = 0
-        last_year_sum = 0
+        latest_row = df_rev.iloc[-1]
+        current_year = latest_row['revenue_year']
+        latest_month = latest_row['revenue_month']
         
-        for index, row in latest_3_months.iterrows():
-            last_year_month = df_rev[(df_rev['revenue_year'] == row['revenue_year'] - 1) & 
-                                     (df_rev['revenue_month'] == row['revenue_month'])]
-            if last_year_month.empty:
-                return False
-            current_sum += row['revenue']
-            last_year_sum += last_year_month.iloc[0]['revenue']
+        current_year_data = df_rev[df_rev['revenue_year'] == current_year]
+        last_year_data = df_rev[(df_rev['revenue_year'] == current_year - 1) & (df_rev['revenue_month'] <= latest_month)]
+        
+        if current_year_data.empty or last_year_data.empty:
+            return False
             
-        return current_sum > last_year_sum
+        current_ytd = current_year_data['revenue'].sum()
+        last_ytd = last_year_data['revenue'].sum()
+        
+        return current_ytd > last_ytd
     except Exception:
         return False
 
@@ -158,8 +159,8 @@ def format_history(df, sym):
             bb_lower_val = yf_row['bb_lower']
             
         history_data.append({
-            'date': r['date'], 'open': r['open'], 'high': r['high'], 'low': r['low'],
-            'close': r['close'], 'volume': int(r['volume'] / 1000) if pd.notna(r['volume']) else 0,
+            'date': r['date'], 'open': safe_round(r['open'], 2), 'high': safe_round(r['high'], 2), 'low': safe_round(r['low'], 2),
+            'close': safe_round(r['close'], 2), 'volume': int(r['volume'] / 1000) if pd.notna(r['volume']) else 0,
             'ma5': safe_round(ma5_val, 2), 
             'ma10': safe_round(ma10_val, 2), 
             'ma60': safe_round(ma60_val, 2),
@@ -241,8 +242,16 @@ def run_screener():
         if vol_shares > 3000000 and last_day['macd'] > 0 and shrink_2:
             tea_candidates.append(stock_info)
             
-        # Test: Volume > 3000, Shrink 2 days
-        if vol_shares > 3000000 and shrink_2:
+        # Test: 60-day MA down, Price < 60-day MA, Volume > 500, Shrink 2 days
+        ma60_down = False
+        if pd.notna(last_day['ma60']) and pd.notna(prev_day_1['ma60']):
+            ma60_down = last_day['ma60'] < prev_day_1['ma60']
+            
+        price_below_ma60 = False
+        if pd.notna(last_day['ma60']):
+            price_below_ma60 = last_day['close'] < last_day['ma60']
+            
+        if vol_shares > 500000 and shrink_2 and ma60_down and price_below_ma60:
             test_candidates.append(stock_info)
             
         # Moon: Volume > 1000, Shrink 3 days
@@ -283,7 +292,7 @@ def run_screener():
     test_results = []
     print("【進階處理】測試...")
     def process_test(s):
-        if check_cumulative_yoy_3_months(s['symbol']) and check_institutional_buy_2_days(s['symbol']):
+        if check_ytd_yoy(s['symbol']):
             return format_stock_output(s)
         return None
         
@@ -583,8 +592,7 @@ if __name__ == "__main__":
             "moon": sorted(data['moon'], key=lambda x: x['symbol']),
             "long_etf": long_etfs_res,
             "high_div": high_div_etfs_res,
-            "indices": indices_res,
-            "statistics": statistics
+            "indices": indices_res
         }
     }
     
