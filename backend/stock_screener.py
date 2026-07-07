@@ -112,25 +112,18 @@ def check_institutional_buy_2_days(symbol):
 def format_history(df, sym):
     chart_df = df.tail(60)
     
-    ma_data = None
+    # Only fetch yfinance for MA248 (needs ~1yr+ of data, local DB may not have enough)
+    ma248_lookup = {}
     try:
         yf_df = yf.download(sym, period="2y", progress=False)
         if not yf_df.empty:
             if isinstance(yf_df.columns, pd.MultiIndex):
                 yf_df.columns = yf_df.columns.droplevel(1)
-                
-            yf_df['ma5'] = yf_df['Close'].rolling(window=5).mean()
-            yf_df['ma10'] = yf_df['Close'].rolling(window=10).mean()
-            yf_df['ma60'] = yf_df['Close'].rolling(window=60).mean()
             yf_df['ma248'] = yf_df['Close'].rolling(window=248).mean()
-            
-            ma20 = yf_df['Close'].rolling(window=20).mean()
-            std20 = yf_df['Close'].rolling(window=20).std()
-            yf_df['bb_upper'] = ma20 + (2 * std20)
-            yf_df['bb_lower'] = ma20 - (2 * std20)
-            
-            yf_df.index = yf_df.index.strftime('%Y-%m-%d')
-            ma_data = yf_df
+            for d, row in yf_df.iterrows():
+                date_key = d.strftime('%Y-%m-%d')
+                if pd.notna(row['ma248']):
+                    ma248_lookup[date_key] = round(float(row['ma248']), 2)
     except Exception:
         pass
 
@@ -141,32 +134,18 @@ def format_history(df, sym):
     for _, r in chart_df.iterrows():
         date_str = r['date']
         
-        # Default to local DB calculations if yf fails, though local may have NaNs for early days
-        ma5_val = r['ma5']
-        ma10_val = r['ma10']
-        ma60_val = r['ma60']
-        bb_upper_val = r['bb_upper']
-        bb_lower_val = r['bb_lower']
-        ma248_val = None
-        
-        if ma_data is not None and date_str in ma_data.index:
-            yf_row = ma_data.loc[date_str]
-            ma5_val = yf_row['ma5']
-            ma10_val = yf_row['ma10']
-            ma60_val = yf_row['ma60']
-            ma248_val = yf_row['ma248']
-            bb_upper_val = yf_row['bb_upper']
-            bb_lower_val = yf_row['bb_lower']
+        # All MA/BB values come from local DB (same close prices as OHLC candlesticks)
+        ma248_val = ma248_lookup.get(date_str)
             
         history_data.append({
             'date': r['date'], 'open': safe_round(r['open'], 2), 'high': safe_round(r['high'], 2), 'low': safe_round(r['low'], 2),
             'close': safe_round(r['close'], 2), 'volume': int(r['volume'] / 1000) if pd.notna(r['volume']) else 0,
-            'ma5': safe_round(ma5_val, 2), 
-            'ma10': safe_round(ma10_val, 2), 
-            'ma60': safe_round(ma60_val, 2),
-            'ma248': safe_round(ma248_val, 2),
-            'bb_upper': safe_round(bb_upper_val, 2), 
-            'bb_lower': safe_round(bb_lower_val, 2),
+            'ma5': safe_round(r['ma5'], 2), 
+            'ma10': safe_round(r['ma10'], 2), 
+            'ma60': safe_round(r['ma60'], 2),
+            'ma248': ma248_val,
+            'bb_upper': safe_round(r['bb_upper'], 2), 
+            'bb_lower': safe_round(r['bb_lower'], 2),
             'macd': safe_round(r['macd'], 4), 'signal': safe_round(r['Signal'], 4), 'hist': safe_round(r['Hist'], 4)
         })
     return history_data
