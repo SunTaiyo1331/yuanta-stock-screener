@@ -170,5 +170,5 @@ def init_database(days_needed=60):
     print("資料庫初始化完成！")
 
 if __name__ == '__main__':
-    # 測試時先抓 60 天
-    init_database(60)
+    # 初始化需要 150 天以確保 MA60 在顯示的 60 天內都有值
+    init_database(150)
