@@ -175,19 +175,41 @@ def format_stock_output(stock_info):
 
 def run_screener():
     print("【第一步】更新本地資料庫 (自動補齊最新交易日)...")
-    init_database(1)
+    # Check if DB has enough history for MA60 (need 60 warmup + 60 display = 120 days)
+    conn_check = sqlite3.connect(DB_PATH)
+    cursor_check = conn_check.cursor()
+    cursor_check.execute('SELECT COUNT(DISTINCT date) FROM daily_quotes')
+    existing_days = cursor_check.fetchone()[0]
+    conn_check.close()
+    
+    if existing_days < 120:
+        days_needed = 150 - existing_days
+        print(f"  資料庫只有 {existing_days} 天，需補充至 150 天...")
+        init_database(days_needed)
+    else:
+        init_database(1)
     
     print("【第二步】載入全市場歷史資料...")
     df_all = get_db_data()
     if df_all.empty:
         print("資料庫為空！")
-        return {"tea": [], "test": [], "moon": []}
+        return {"tea": [], "test": [], "moon": [], "fifty": []}
         
     symbol_groups = df_all.groupby('symbol')
     
     tea_candidates = []
     test_candidates = []
     moon_candidates = []
+    fifty_candidates = []
+    
+    # 0050 成分股清單 (台灣50指數)
+    fifty_symbols = [
+        '2330', '2454', '2317', '2308', '2382', '3711', '2303', '2881', '2891', '2882',
+        '2886', '3034', '2412', '2884', '3231', '2357', '6669', '1303', '2002', '1301',
+        '2880', '5880', '1326', '5871', '2892', '3037', '2885', '2883', '3661', '4904',
+        '2887', '6505', '1101', '2395', '3045', '2207', '4938', '9910', '2603', '2301',
+        '5876', '2327', '1216', '2379', '6446', '8046', '3017', '8069', '2345', '6526'
+    ]
     
     for symbol, df in symbol_groups:
         if len(df) < 35: continue
@@ -236,8 +258,12 @@ def run_screener():
         # Moon: Volume > 1000, Shrink 3 days
         if vol_shares > 1000000 and shrink_3:
             moon_candidates.append(stock_info)
+        
+        # Fifty: 0050 成分股 + 綠柱2連縮
+        if clean_symbol in fifty_symbols and shrink_2:
+            fifty_candidates.append(stock_info)
 
-    print(f"初篩通過數 -> 茶葉:{len(tea_candidates)} 測試:{len(test_candidates)} 止月:{len(moon_candidates)}")
+    print(f"初篩通過數 -> 茶葉:{len(tea_candidates)} 測試:{len(test_candidates)} 止月:{len(moon_candidates)} 50大:{len(fifty_candidates)}")
     
     # ------------------
     # Process Tea
@@ -302,15 +328,24 @@ def run_screener():
         except Exception:
             continue
 
+    # ------------------
+    # Process Fifty (0050 成分股)
+    # ------------------
+    fifty_results = []
+    print("【進階處理】50大...")
+    for s in fifty_candidates:
+        fifty_results.append(format_stock_output(s))
+
     return {
         "tea": tea_results,
         "test": test_results,
-        "moon": moon_results
+        "moon": moon_results,
+        "fifty": fifty_results
     }
 
 if __name__ == "__main__":
     if not os.path.exists(DB_PATH):
-        init_database(60)
+        init_database(150)
         
     data = run_screener()
     
@@ -569,6 +604,7 @@ if __name__ == "__main__":
             "tea": sorted(data['tea'], key=lambda x: x['symbol']),
             "test": sorted(data['test'], key=lambda x: x['symbol']),
             "moon": sorted(data['moon'], key=lambda x: x['symbol']),
+            "fifty": sorted(data['fifty'], key=lambda x: x['symbol']),
             "long_etf": long_etfs_res,
             "high_div": high_div_etfs_res,
             "indices": indices_res
@@ -590,4 +626,4 @@ if __name__ == "__main__":
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(scrub_nans(output), f, ensure_ascii=False, indent=4)
         
-    print(f"分析完成！茶葉:{len(data['tea'])} 測試:{len(data['test'])} 止月:{len(data['moon'])}")
+    print(f"分析完成！茶葉:{len(data['tea'])} 測試:{len(data['test'])} 止月:{len(data['moon'])} 50大:{len(data['fifty'])}")
