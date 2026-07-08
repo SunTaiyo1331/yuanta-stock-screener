@@ -194,6 +194,7 @@ function selectStrategy(strategy) {
     else if (strategy === 'moon') titleEl.textContent = '🌙 止月隱藏策略';
     else if (strategy === 'long_etf') titleEl.textContent = '📈 長期ETF區';
     else if (strategy === 'high_div') titleEl.textContent = '💸 高股息ETF區';
+    else if (strategy === 'fifty') titleEl.textContent = '🏆 50大';
     
     const floatingBtn = document.getElementById('floating-home-btn');
     if (floatingBtn) floatingBtn.classList.remove('hidden');
@@ -237,6 +238,7 @@ function renderStrategyData(strategy) {
         'moon': '止月隱藏策略',
         'long_etf': '長期 ETF 區',
         'high_div': '高股息 ETF 區',
+        'fifty': '50大',
         'statistics': '策略統計區'
     };
     
@@ -518,7 +520,7 @@ function renderChart(containerId, history) {
                 yAxisIndex: 0,
                 smooth: false,
                 showSymbol: false,
-                connectNulls: false,
+                connectNulls: true,
                 itemStyle: { color: '#fef08a' },
                 lineStyle: { width: 1.5, color: '#fef08a' } 
             },
@@ -530,7 +532,7 @@ function renderChart(containerId, history) {
                 yAxisIndex: 0,
                 smooth: false,
                 showSymbol: false,
-                connectNulls: false,
+                connectNulls: true,
                 itemStyle: { color: '#f472b6' },
                 lineStyle: { width: 1.5, color: '#f472b6' } 
             },
@@ -542,7 +544,7 @@ function renderChart(containerId, history) {
                 yAxisIndex: 0,
                 smooth: false,
                 showSymbol: false,
-                connectNulls: false,
+                connectNulls: true,
                 itemStyle: { color: '#0abab5' },
                 lineStyle: { width: 1.5, color: '#0abab5' } 
             },
@@ -554,7 +556,7 @@ function renderChart(containerId, history) {
                 yAxisIndex: 0,
                 smooth: false,
                 showSymbol: false,
-                connectNulls: false,
+                connectNulls: true,
                 itemStyle: { color: '#a0522d' },
                 lineStyle: { width: 1.5, color: '#a0522d' } 
             },
@@ -566,7 +568,7 @@ function renderChart(containerId, history) {
                 yAxisIndex: 0,
                 smooth: false,
                 showSymbol: false,
-                connectNulls: false,
+                connectNulls: true,
                 itemStyle: { color: '#9ca3af' },
                 lineStyle: { width: 1, type: 'dashed', color: '#9ca3af' }
             },
@@ -578,7 +580,7 @@ function renderChart(containerId, history) {
                 yAxisIndex: 0,
                 smooth: false,
                 showSymbol: false,
-                connectNulls: false,
+                connectNulls: true,
                 itemStyle: { color: '#9ca3af' },
                 lineStyle: { width: 1, type: 'dashed', color: '#9ca3af' }
             },
