@@ -91,11 +91,8 @@
             <button onclick="selectStrategy('test')" class="w-64 py-5 rounded-2xl bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold text-xl hover:scale-105 transition-transform shadow-glow">
                 🧪 測試策略
             </button>
-            <button onclick="selectStrategy('long_etf')" class="w-64 py-5 rounded-2xl bg-gradient-to-r from-purple-500 to-purple-700 text-white font-bold text-xl hover:scale-105 transition-transform shadow-glow">
-                📈 長期ETF區
-            </button>
-            <button onclick="selectStrategy('high_div')" class="w-64 py-5 rounded-2xl bg-gradient-to-r from-pink-500 to-pink-700 text-white font-bold text-xl hover:scale-105 transition-transform shadow-glow">
-                💸 高股息ETF區
+            <button onclick="selectStrategy('etf')" class="w-64 py-5 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-600 text-white font-bold text-xl hover:scale-105 transition-transform shadow-glow">
+                📊 ETF 區
             </button>
             <button onclick="selectStrategy('fifty')" class="w-64 py-5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold text-xl hover:scale-105 transition-transform shadow-glow">
                 🏆 50大
@@ -147,14 +144,27 @@
 
         <!-- Table Container (For ETFs) -->
         <div id="table-container" class="hidden mt-8">
-            <div class="overflow-x-auto rounded-2xl border border-gray-800 bg-gray-900/60 backdrop-blur-md shadow-2xl">
+            <!-- 長期 ETF 表格 -->
+            <h2 id="long-etf-title" class="text-2xl font-bold text-white mb-4 hidden">📈 長期 ETF</h2>
+            <div id="long-etf-table-wrap" class="overflow-x-auto rounded-2xl border border-gray-800 bg-gray-900/60 backdrop-blur-md shadow-2xl mb-10 hidden">
+                <table class="w-full text-left border-collapse whitespace-nowrap">
+                    <thead id="long-etf-table-head" class="bg-gray-800/80 border-b border-gray-700 text-gray-300"></thead>
+                    <tbody id="long-etf-table-body" class="divide-y divide-gray-800/50"></tbody>
+                </table>
+            </div>
+            <!-- 高股息 ETF 表格 -->
+            <h2 id="high-div-title" class="text-2xl font-bold text-white mb-4 hidden">💸 高股息 ETF</h2>
+            <div id="high-div-table-wrap" class="overflow-x-auto rounded-2xl border border-gray-800 bg-gray-900/60 backdrop-blur-md shadow-2xl hidden">
+                <table class="w-full text-left border-collapse whitespace-nowrap">
+                    <thead id="high-div-table-head" class="bg-gray-800/80 border-b border-gray-700 text-gray-300"></thead>
+                    <tbody id="high-div-table-body" class="divide-y divide-gray-800/50"></tbody>
+                </table>
+            </div>
+            <!-- Legacy single table (kept for non-ETF table use) -->
+            <div id="single-table-wrap" class="overflow-x-auto rounded-2xl border border-gray-800 bg-gray-900/60 backdrop-blur-md shadow-2xl hidden">
                 <table id="etf-table" class="w-full text-left border-collapse whitespace-nowrap">
-                    <thead id="etf-table-head" class="bg-gray-800/80 border-b border-gray-700 text-gray-300">
-                        <!-- Headers will be injected here -->
-                    </thead>
-                    <tbody id="etf-table-body" class="divide-y divide-gray-800/50">
-                        <!-- Rows will be injected here -->
-                    </tbody>
+                    <thead id="etf-table-head" class="bg-gray-800/80 border-b border-gray-700 text-gray-300"></thead>
+                    <tbody id="etf-table-body" class="divide-y divide-gray-800/50"></tbody>
                 </table>
             </div>
         </div>
