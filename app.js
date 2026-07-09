@@ -192,8 +192,7 @@ function selectStrategy(strategy) {
     if (strategy === 'tea') titleEl.textContent = '🍵 茶葉智慧站';
     else if (strategy === 'test') titleEl.textContent = '🧪 測試策略結果';
     else if (strategy === 'moon') titleEl.textContent = '🌙 止月隱藏策略';
-    else if (strategy === 'long_etf') titleEl.textContent = '📈 長期ETF區';
-    else if (strategy === 'high_div') titleEl.textContent = '💸 高股息ETF區';
+    else if (strategy === 'etf') titleEl.textContent = '📊 ETF 區';
     else if (strategy === 'fifty') titleEl.textContent = '🏆 50大';
     
     const floatingBtn = document.getElementById('floating-home-btn');
@@ -236,37 +235,53 @@ function renderStrategyData(strategy) {
         'tea': '茶葉智慧站',
         'test': '測試策略結果',
         'moon': '止月隱藏策略',
-        'long_etf': '長期 ETF 區',
-        'high_div': '高股息 ETF 區',
-        'fifty': '50大',
-        'statistics': '策略統計區'
+        'etf': 'ETF 區',
+        'fifty': '50大'
     };
     
-    document.getElementById('dashboard-title').textContent = titles[strategy];
+    document.getElementById('dashboard-title').textContent = titles[strategy] || strategy;
     document.getElementById('update-time').textContent = cachedData.updated_at;
     
     const grid = document.getElementById('stock-grid');
     const emptyState = document.getElementById('empty-state');
     const tableContainer = document.getElementById('table-container');
     
-    grid.innerHTML = ''; // Clear previous content
+    grid.innerHTML = '';
     
-    const stocks = cachedData.data[strategy];
+    // Hide all sub-table wrappers
+    ['long-etf-title', 'long-etf-table-wrap', 'high-div-title', 'high-div-table-wrap', 'single-table-wrap'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
     
-    if (strategy === 'long_etf' || strategy === 'high_div') {
-        if (stocks && stocks.length > 0) {
-            emptyState.classList.add('hidden');
-            tableContainer.classList.remove('hidden');
-            grid.classList.remove('hidden');
-            renderETFTable(strategy, stocks);
-            renderStocks(stocks);
-        } else {
+    if (strategy === 'etf') {
+        // Merged ETF page: show two tables, no K-line cards
+        const longEtfs = cachedData.data['long_etf'] || [];
+        const highDivEtfs = cachedData.data['high_div'] || [];
+        
+        if (longEtfs.length === 0 && highDivEtfs.length === 0) {
             tableContainer.classList.add('hidden');
             grid.classList.add('hidden');
             emptyState.classList.remove('hidden');
+        } else {
+            emptyState.classList.add('hidden');
+            grid.classList.add('hidden');
+            tableContainer.classList.remove('hidden');
+            
+            if (longEtfs.length > 0) {
+                document.getElementById('long-etf-title').classList.remove('hidden');
+                document.getElementById('long-etf-table-wrap').classList.remove('hidden');
+                renderETFTable('long_etf', longEtfs, 'long-etf-table-head', 'long-etf-table-body');
+            }
+            if (highDivEtfs.length > 0) {
+                document.getElementById('high-div-title').classList.remove('hidden');
+                document.getElementById('high-div-table-wrap').classList.remove('hidden');
+                renderETFTable('high_div', highDivEtfs, 'high-div-table-head', 'high-div-table-body');
+            }
         }
     } else {
         tableContainer.classList.add('hidden');
+        const stocks = cachedData.data[strategy];
         if (stocks && stocks.length > 0) {
             grid.classList.remove('hidden');
             emptyState.classList.add('hidden');
@@ -351,9 +366,9 @@ function renderStocks(stocks) {
     });
 }
 
-function renderETFTable(strategy, etfs) {
-    const thead = document.getElementById('etf-table-head');
-    const tbody = document.getElementById('etf-table-body');
+function renderETFTable(strategy, etfs, theadId, tbodyId) {
+    const thead = document.getElementById(theadId || 'etf-table-head');
+    const tbody = document.getElementById(tbodyId || 'etf-table-body');
     
     thead.innerHTML = '';
     tbody.innerHTML = '';
@@ -392,7 +407,6 @@ function renderETFTable(strategy, etfs) {
             rowHtml += `<td class="py-4 px-6 text-center"><span class="px-3 py-1 rounded-full bg-gray-800 border border-gray-700 text-xs font-semibold tracking-widest">${etf.div_freq}</span></td>`;
             let yieldVal = (etf.last_year_yield !== null && etf.last_year_yield !== undefined) ? `${etf.last_year_yield.toFixed(2)}%` : '-';
             rowHtml += `<td class="py-4 px-6 font-mono font-bold text-right ${yieldColor}">${yieldVal}</td>`;
-            // This expects etf.ytd_yield to be populated
             let ytdYieldVal = (etf.ytd_yield !== null && etf.ytd_yield !== undefined) ? `${etf.ytd_yield.toFixed(2)}%` : "-";
             rowHtml += `<td class="py-4 px-6 font-mono font-bold text-right ${ytdYieldColor}">${ytdYieldVal}</td>`;
             rowHtml += `<td class="py-4 px-6 font-mono font-bold text-right ${lastYearColor}">${lastYearVal}</td>`;
