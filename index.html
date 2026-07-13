@@ -84,23 +84,36 @@
             最後更新時間：載入中...
         </p>
 
-        <div class="flex flex-col md:flex-row gap-6 items-center flex-wrap justify-center mt-4">
-            <button onclick="selectStrategy('tea')" class="w-64 py-5 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-xl hover:scale-105 transition-transform shadow-glow">
-                🍵 茶葉智慧站
-            </button>
-            <button onclick="selectStrategy('test')" class="w-64 py-5 rounded-2xl bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold text-xl hover:scale-105 transition-transform shadow-glow">
-                🧪 測試策略
-            </button>
-            <button onclick="selectStrategy('etf')" class="w-64 py-5 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-600 text-white font-bold text-xl hover:scale-105 transition-transform shadow-glow">
-                📊 ETF 區
-            </button>
-            <button onclick="selectStrategy('fifty')" class="w-64 py-5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold text-xl hover:scale-105 transition-transform shadow-glow">
-                🏆 50大
-            </button>
-        </div>
+        <div class="flex flex-col items-center gap-8 mt-4">
+            <!-- 主要策略 -->
+            <div class="flex flex-col md:flex-row gap-6 items-center justify-center">
+                <button onclick="selectStrategy('tea')" class="w-64 py-5 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-xl hover:scale-105 transition-transform shadow-glow">
+                    🍵 茶葉智慧站
+                </button>
+                <button onclick="selectStrategy('moon')" class="w-64 py-5 rounded-2xl bg-gradient-to-r from-indigo-500 to-violet-700 text-white font-bold text-xl hover:scale-105 transition-transform shadow-glow">
+                    🌙 止月策略
+                </button>
+            </div>
 
-        <!-- 止月隱藏按鈕 (右下角透明區域) -->
-        <div onclick="selectStrategy('moon')" class="fixed bottom-0 right-0 w-20 h-20 cursor-pointer z-50 bg-white opacity-0 hover:opacity-5 transition-opacity" title=" "></div>
+            <!-- 驗證中... 折疊區 -->
+            <div class="w-full max-w-2xl">
+                <button onclick="toggleVerifySection()" id="verify-toggle-btn" class="w-full py-3 rounded-xl bg-gray-800/60 border border-gray-700/50 text-gray-300 font-semibold text-lg hover:bg-gray-700/60 transition-all flex items-center justify-center gap-2 backdrop-blur-md">
+                    <span id="verify-arrow" class="transition-transform duration-300">▶</span>
+                    🔬 驗證中...
+                </button>
+                <div id="verify-section" class="hidden mt-4 flex flex-col md:flex-row gap-4 items-center justify-center animate-fade-in">
+                    <button onclick="selectStrategy('test')" class="w-56 py-4 rounded-2xl bg-gradient-to-r from-blue-500 to-blue-700 text-white font-bold text-lg hover:scale-105 transition-transform shadow-glow">
+                        🧪 測試策略
+                    </button>
+                    <button onclick="selectStrategy('etf')" class="w-56 py-4 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-600 text-white font-bold text-lg hover:scale-105 transition-transform shadow-glow">
+                        📊 ETF 區
+                    </button>
+                    <button onclick="selectStrategy('fifty')" class="w-56 py-4 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold text-lg hover:scale-105 transition-transform shadow-glow">
+                        🏆 50大
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
 
