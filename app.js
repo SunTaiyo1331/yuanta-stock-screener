@@ -184,6 +184,29 @@ function renderTaiexChart(idx) {
 }
 
 
+let verifyUnlocked = false;
+
+function toggleVerifySection() {
+    const section = document.getElementById('verify-section');
+    const arrow = document.getElementById('verify-arrow');
+    
+    if (!verifyUnlocked) {
+        const pwd = prompt('請輸入密碼：');
+        if (pwd !== '5957+') {
+            return;
+        }
+        verifyUnlocked = true;
+    }
+    
+    if (section.classList.contains('hidden')) {
+        section.classList.remove('hidden');
+        arrow.style.transform = 'rotate(90deg)';
+    } else {
+        section.classList.add('hidden');
+        arrow.style.transform = 'rotate(0deg)';
+    }
+}
+
 function selectStrategy(strategy) {
     document.getElementById('landing-view').classList.add('hidden');
     document.getElementById('dashboard-view').classList.remove('hidden');
@@ -191,7 +214,7 @@ function selectStrategy(strategy) {
     const titleEl = document.getElementById('dashboard-title');
     if (strategy === 'tea') titleEl.textContent = '🍵 茶葉智慧站';
     else if (strategy === 'test') titleEl.textContent = '🧪 測試策略結果';
-    else if (strategy === 'moon') titleEl.textContent = '🌙 止月隱藏策略';
+    else if (strategy === 'moon') titleEl.textContent = '🌙 止月策略';
     else if (strategy === 'etf') titleEl.textContent = '📊 ETF 區';
     else if (strategy === 'fifty') titleEl.textContent = '🏆 50大';
     
