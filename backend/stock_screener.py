@@ -39,6 +39,66 @@ def get_db_data():
     conn.close()
     return df
 
+def check_monthly_macd_shrink(symbol):
+    """檢查月MACD是否也呈現綠柱2連縮"""
+    try:
+        yf_df = yf.download(symbol, period="2y", progress=False)
+        if yf_df.empty:
+            return False
+        if isinstance(yf_df.columns, pd.MultiIndex):
+            yf_df.columns = yf_df.columns.droplevel(1)
+        
+        # 用月K算MACD
+        m_df = yf_df['Close'].resample('ME').last().to_frame(name='close')
+        m_df = m_df.dropna()
+        if len(m_df) < 6:
+            return False
+        m_macd, m_signal, m_hist = calculate_macd(m_df)
+        
+        # 檢查最近3根月K的Hist是否為綠柱2連縮
+        h0 = float(m_hist.iloc[-1])
+        h1 = float(m_hist.iloc[-2])
+        h2 = float(m_hist.iloc[-3])
+        
+        return (h0 < 0 and h1 < 0 and h2 < 0 and h0 > h1 and h1 > h2)
+    except Exception:
+        return False
+
+def check_3month_revenue_yoy(symbol):
+    """檢查近三個月累計營收年增率是否 > 0"""
+    try:
+        clean_symbol = symbol.replace('.TW', '').replace('.TWO', '')
+        url = f"https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockMonthRevenue&data_id={clean_symbol}&start_date=2024-01-01"
+        res = requests.get(url, timeout=10)
+        data = res.json()
+        if data['status'] != 200 or not data['data']:
+            return False
+        df_rev = pd.DataFrame(data['data'])
+        if len(df_rev) < 15:
+            return False
+        df_rev = df_rev.sort_values(by=['revenue_year', 'revenue_month']).reset_index(drop=True)
+        
+        # 取最新3個月
+        latest_3 = df_rev.tail(3)
+        latest_year = latest_3.iloc[-1]['revenue_year']
+        latest_months = latest_3['revenue_month'].tolist()
+        
+        # 去年同期
+        last_year_data = df_rev[
+            (df_rev['revenue_year'] == latest_year - 1) & 
+            (df_rev['revenue_month'].isin(latest_months))
+        ]
+        
+        if last_year_data.empty:
+            return False
+        
+        current_sum = latest_3['revenue'].sum()
+        last_year_sum = last_year_data['revenue'].sum()
+        
+        return current_sum > last_year_sum
+    except Exception:
+        return False
+
 def check_ytd_yoy(symbol):
     try:
         clean_symbol = symbol.replace('.TW', '').replace('.TWO', '')
@@ -243,16 +303,8 @@ def run_screener():
         if vol_shares > 3000000 and last_day['macd'] > 0 and shrink_2:
             tea_candidates.append(stock_info)
             
-        # Test: 60-day MA down, Price < 60-day MA, Volume > 500, Shrink 2 days
-        ma60_down = False
-        if pd.notna(last_day['ma60']) and pd.notna(prev_day_1['ma60']):
-            ma60_down = last_day['ma60'] < prev_day_1['ma60']
-            
-        price_below_ma60 = False
-        if pd.notna(last_day['ma60']):
-            price_below_ma60 = last_day['close'] < last_day['ma60']
-            
-        if vol_shares > 500000 and shrink_2 and ma60_down and price_below_ma60:
+        # Test: Volume > 100張, 日MACD綠柱2連縮
+        if vol_shares > 100000 and shrink_2:
             test_candidates.append(stock_info)
             
         # Moon: Volume > 1000, Shrink 3 days
@@ -292,14 +344,22 @@ def run_screener():
         tea_results.append(format_stock_output(s))
 
     # ------------------
-    # Process Test
+    # Process Test (日&月MACD綠柱2連縮 + 近三月累計營收YoY>0 + 籌碼面)
     # ------------------
     test_results = []
-    print("【進階處理】測試...")
+    print("【進階處理】測試 (月MACD + 營收 + 籌碼)...")
     def process_test(s):
-        if check_ytd_yoy(s['symbol']):
-            return format_stock_output(s)
-        return None
+        sym = s['symbol']
+        # 1. 月MACD綠柱2連縮
+        if not check_monthly_macd_shrink(sym):
+            return None
+        # 2. 近三月累計營收YoY > 0
+        if not check_3month_revenue_yoy(sym):
+            return None
+        # 3. 籌碼面：近兩日外資與投信有合計買超
+        if not check_institutional_buy_2_days(sym):
+            return None
+        return format_stock_output(s)
         
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         for res in executor.map(process_test, test_candidates):
@@ -329,12 +389,18 @@ def run_screener():
             continue
 
     # ------------------
-    # Process Fifty (0050 成分股)
+    # Process Fifty (0050 成分股 + 日&月MACD綠柱2連縮)
     # ------------------
     fifty_results = []
-    print("【進階處理】50大...")
-    for s in fifty_candidates:
-        fifty_results.append(format_stock_output(s))
+    print("【進階處理】50大 (月MACD檢查)...")
+    def process_fifty(s):
+        if check_monthly_macd_shrink(s['symbol']):
+            return format_stock_output(s)
+        return None
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+        for res in executor.map(process_fifty, fifty_candidates):
+            if res: fifty_results.append(res)
 
     return {
         "tea": tea_results,
