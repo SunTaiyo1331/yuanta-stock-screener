@@ -1,24 +1,26 @@
 let cachedData = null;
 let activeTab = 'market';
 let verifyUnlocked = false;
+let chartInstances = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchStockData();
 });
 
-function toggleVerifyDropdown() {
-    const dropdown = document.getElementById('verify-dropdown');
-    dropdown.classList.toggle('hidden');
-}
-
-// 點擊頁面其他地方時自動收起下拉選單
-document.addEventListener('click', (e) => {
-    const dropdown = document.getElementById('verify-dropdown');
-    const verifyBtn = document.getElementById('tab-verify');
-    if (dropdown && verifyBtn && !verifyBtn.contains(e.target) && !dropdown.contains(e.target)) {
-        dropdown.classList.add('hidden');
+function unlockVerifyArea() {
+    if (verifyUnlocked) return;
+    const pwd = prompt('請輸入密碼：');
+    if (pwd === '5957+') {
+        verifyUnlocked = true;
+        const lockBtn = document.getElementById('verify-lock-btn');
+        const expandedTabs = document.getElementById('verify-expanded-tabs');
+        if (lockBtn) lockBtn.classList.add('hidden');
+        if (expandedTabs) expandedTabs.classList.remove('hidden');
+        switchTab('test');
+    } else if (pwd !== null) {
+        alert('密碼錯誤！');
     }
-});
+}
 
 async function fetchStockData() {
     try {
@@ -46,20 +48,9 @@ async function fetchStockData() {
 }
 
 function switchTab(tabName) {
-    // 檢查是否點擊需要密碼的驗證區
-    if (['test', 'etf', 'fifty'].includes(tabName) && !verifyUnlocked) {
-        const pwd = prompt('請輸入密碼：');
-        if (pwd !== '5957+') {
-            return;
-        }
-        verifyUnlocked = true;
-    }
-
     activeTab = tabName;
-    const dropdown = document.getElementById('verify-dropdown');
-    if (dropdown) dropdown.classList.add('hidden');
 
-    // 更新選單按鈕高亮狀態
+    // 更新所有 Tab 按鈕的高亮樣式
     const tabs = ['market', 'tea', 'moon', 'test', 'etf', 'fifty'];
     tabs.forEach(t => {
         const btn = document.getElementById(`tab-${t}`);
@@ -71,13 +62,6 @@ function switchTab(tabName) {
         }
     });
 
-    const verifyParentBtn = document.getElementById('tab-verify');
-    if (['test', 'etf', 'fifty'].includes(tabName)) {
-        verifyParentBtn.className = "tab-btn px-4 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap bg-purple-600 text-white shadow-glow flex items-center gap-1 border border-purple-500";
-    } else {
-        verifyParentBtn.className = "tab-btn px-4 py-2.5 rounded-xl font-bold text-sm text-gray-400 hover:text-white hover:bg-gray-800/60 transition-all whitespace-nowrap flex items-center gap-1 border border-gray-700/50";
-    }
-
     const viewMarket = document.getElementById('view-market');
     const viewScreener = document.getElementById('view-screener');
 
@@ -87,6 +71,14 @@ function switchTab(tabName) {
         if (cachedData && cachedData.data.indices) {
             renderIndices(cachedData.data.indices);
         }
+        // 延遲強制觸發所有圖表 resize 確保滿版正常
+        setTimeout(() => {
+            chartInstances.forEach(chart => {
+                if (chart && typeof chart.resize === 'function') {
+                    chart.resize();
+                }
+            });
+        }, 100);
     } else {
         viewMarket.classList.add('hidden');
         viewScreener.classList.remove('hidden');
@@ -130,12 +122,18 @@ function renderTaiexChart(idx) {
     const colorClass = isUp ? 'text-danger bg-danger/10' : 'text-success bg-success/10';
     const changeEl = document.getElementById('taiex-change');
     changeEl.textContent = `${sign}${idx.change} (${sign}${idx.change_percent}%)`;
-    changeEl.className = `font-mono text-sm px-2 py-0.5 rounded ml-2 ${colorClass}`;
+    changeEl.className = `font-mono text-xs sm:text-sm px-2 py-0.5 rounded ml-2 ${colorClass}`;
     
     if (!idx.history || idx.history.length === 0) return;
     
     const chartDom = document.getElementById('taiex-chart');
-    const myChart = echarts.init(chartDom);
+    if (!chartDom) return;
+    
+    let myChart = echarts.getInstanceByDom(chartDom);
+    if (!myChart) {
+        myChart = echarts.init(chartDom);
+        chartInstances.push(myChart);
+    }
     
     const categoryData = [];
     const values = []; 
@@ -163,8 +161,8 @@ function renderTaiexChart(idx) {
             textStyle: { color: '#e5e7eb', fontSize: 12 },
         },
         grid: [
-            { left: '6%', right: '2%', top: '8%', height: '58%' }, 
-            { left: '6%', right: '2%', top: '72%', height: '20%' }
+            { left: 65, right: 20, top: '10%', height: '56%' }, 
+            { left: 65, right: 20, top: '72%', height: '20%' }
         ],
         xAxis: [
             {
@@ -241,7 +239,7 @@ function renderTaiexChart(idx) {
     };
 
     myChart.setOption(option);
-    window.addEventListener('resize', () => myChart.resize());
+    setTimeout(() => myChart.resize(), 50);
 }
 
 function renderUSIndicesCharts(indices) {
@@ -257,11 +255,11 @@ function renderUSIndicesCharts(indices) {
     ];
 
     usTargets.forEach((target, idx) => {
-        const item = indices.find(i => i.symbol === target.symbol || i.name.includes(target.name.substring(0, 2)));
+        const item = indices.find(i => i.symbol === target.symbol || (i.name && i.name.includes(target.name.substring(0, 2))));
         if (!item || !item.history || item.history.length === 0) return;
 
         const cardDom = document.createElement('div');
-        cardDom.className = "bg-gray-900/60 border border-gray-800 rounded-3xl p-5 backdrop-blur-md shadow-2xl relative";
+        cardDom.className = "bg-gray-900/60 border border-gray-800 rounded-3xl p-5 backdrop-blur-md shadow-2xl relative w-full";
 
         const isUp = item.change >= 0;
         const sign = isUp ? '+' : '';
@@ -269,7 +267,7 @@ function renderUSIndicesCharts(indices) {
 
         const chartId = `us-chart-${idx}`;
         cardDom.innerHTML = `
-            <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <div class="flex items-center gap-2">
                     <h4 class="text-lg font-bold text-white tracking-tight">${item.name}</h4>
                     <span class="text-xs text-gray-400 font-mono">${item.symbol || ''}</span>
@@ -279,21 +277,26 @@ function renderUSIndicesCharts(indices) {
                     <span class="text-xs px-2 py-0.5 rounded font-semibold ${colorClass}">${sign}${item.change} (${sign}${item.change_percent}%)</span>
                 </div>
             </div>
-            <div id="${chartId}" class="w-full h-64"></div>
+            <div id="${chartId}" class="w-full h-[300px] rounded-xl bg-[#0e121a] border border-gray-800/80"></div>
         `;
 
         container.appendChild(cardDom);
 
         setTimeout(() => {
             renderGenericIndexChart(chartId, item.history);
-        }, 50);
+        }, 60);
     });
 }
 
 function renderGenericIndexChart(chartId, history) {
     const chartDom = document.getElementById(chartId);
     if (!chartDom) return;
-    const myChart = echarts.init(chartDom);
+    
+    let myChart = echarts.getInstanceByDom(chartDom);
+    if (!myChart) {
+        myChart = echarts.init(chartDom);
+        chartInstances.push(myChart);
+    }
 
     const categoryData = [];
     const values = []; 
@@ -321,8 +324,8 @@ function renderGenericIndexChart(chartId, history) {
             textStyle: { color: '#e5e7eb', fontSize: 11 },
         },
         grid: [
-            { left: '8%', right: '3%', top: '8%', height: '58%' }, 
-            { left: '8%', right: '3%', top: '72%', height: '20%' }
+            { left: 60, right: 15, top: '10%', height: '56%' }, 
+            { left: 60, right: 15, top: '72%', height: '20%' }
         ],
         xAxis: [
             {
@@ -399,7 +402,7 @@ function renderGenericIndexChart(chartId, history) {
     };
 
     myChart.setOption(option);
-    window.addEventListener('resize', () => myChart.resize());
+    setTimeout(() => myChart.resize(), 50);
 }
 
 function renderStrategyData(strategy) {
@@ -586,7 +589,11 @@ function renderChart(containerId, history) {
     const chartDom = document.getElementById(containerId);
     if (!chartDom) return;
     
-    const myChart = echarts.init(chartDom);
+    let myChart = echarts.getInstanceByDom(chartDom);
+    if (!myChart) {
+        myChart = echarts.init(chartDom);
+        chartInstances.push(myChart);
+    }
     
     const categoryData = [];
     const values = []; 
@@ -629,9 +636,9 @@ function renderChart(containerId, history) {
             padding: 10
         },
         grid: [
-            { left: '10%', right: '5%', top: '5%', height: '45%' }, 
-            { left: '10%', right: '5%', top: '55%', height: '15%' },
-            { left: '10%', right: '5%', top: '75%', height: '20%' }  
+            { left: 55, right: 15, top: '5%', height: '45%' }, 
+            { left: 55, right: 15, top: '55%', height: '15%' },
+            { left: 55, right: 15, top: '75%', height: '20%' }  
         ],
         xAxis: [
             {
@@ -806,5 +813,13 @@ function renderChart(containerId, history) {
     };
 
     myChart.setOption(option);
-    window.addEventListener('resize', () => myChart.resize());
+    setTimeout(() => myChart.resize(), 50);
 }
+
+window.addEventListener('resize', () => {
+    chartInstances.forEach(chart => {
+        if (chart && typeof chart.resize === 'function') {
+            chart.resize();
+        }
+    });
+});
