@@ -541,11 +541,12 @@ if __name__ == "__main__":
             {'symbol': '^N225', 'name': '日經225'},
             {'symbol': '^HSI', 'name': '香港恒生'}
         ]
+        chart_symbols = ['^TWII', '^SOX', '^DJI', '^IXIC', '^GSPC']
         
         results = []
         for idx in indices_list:
             try:
-                period_to_fetch = '6mo' if idx['symbol'] == '^TWII' else '5d'
+                period_to_fetch = '6mo' if idx['symbol'] in chart_symbols else '5d'
                 df = yf.download(idx['symbol'], period=period_to_fetch, progress=False)
                 if not df.empty:
                     if hasattr(df.columns, 'levels'):
@@ -556,13 +557,14 @@ if __name__ == "__main__":
                     change_percent = (change / prev) * 100 if prev else 0
                     
                     item = {
+                        "symbol": idx['symbol'],
                         "name": idx['name'],
                         "price": round(current, 2),
                         "change": round(change, 2),
                         "change_percent": round(change_percent, 2)
                     }
                     
-                    if idx['symbol'] == '^TWII':
+                    if idx['symbol'] in chart_symbols:
                         df['ma5'] = df['Close'].rolling(window=5).mean()
                         df['ma20'] = df['Close'].rolling(window=20).mean()
                         history_data = []
