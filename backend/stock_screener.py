@@ -397,8 +397,7 @@ if __name__ == "__main__":
         output_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'frontend')
         output_file = os.path.join(output_dir, 'data.json')
     
-    with open(output_file, 'w', encoding='utf-8') as f:
-        print("【進階處理】長期ETF區與高股息ETF區...")
+    print("【進階處理】長期ETF區與高股息ETF區...")
     
     def process_etfs():
         long_etf_symbols = ['0050', '006208', '00631L', '00981A', '0052', '009816']
@@ -440,6 +439,10 @@ if __name__ == "__main__":
                     continue
                 if isinstance(df.columns, pd.MultiIndex):
                     df.columns = df.columns.droplevel(1)
+                
+                df = df.dropna(subset=['Close'])
+                if df.empty:
+                    continue
                     
                 # Calculate stats
                 current_price = float(df['Close'].iloc[-1])
@@ -447,7 +450,7 @@ if __name__ == "__main__":
                 change = current_price - prev_price
                 change_percent = (change / prev_price) * 100 if prev_price else 0
                 volume = int(df['Volume'].iloc[-1] / 1000)
-                recent_low = df['Low'].tail(5).min()
+                recent_low = float(df['Low'].tail(5).min())
                 date_str = df.index[-1].strftime('%Y-%m-%d')
                 
                 df_2025 = df[df.index.year <= 2025]
@@ -488,11 +491,11 @@ if __name__ == "__main__":
                     
                 if sym in high_div_etf_symbols:
                     divs = ticker.dividends
-                    divs_2025 = divs[divs.index.year == 2025].sum() if not divs.empty else 0
+                    divs_2025 = float(divs[divs.index.year == 2025].sum()) if not divs.empty else 0
                     yield_2025 = (divs_2025 / price_end_2025) * 100 if price_end_2025 else 0
                     
-                    divs_2026 = divs[divs.index.year == 2026].sum() if not divs.empty else 0
-                    ytd_yield = (divs_2026 / current_price) * 100 if current_price else 0
+                    divs_2026 = float(divs[divs.index.year == 2026].sum()) if not divs.empty else 0
+                    ytd_yield = (divs_2026 / current_price) * 100 if (current_price and current_price > 0) else 0
                     
                     etf_data["div_freq"] = div_freq.get(sym, '未知')
                     etf_data["last_year_yield"] = round(yield_2025, 2)
