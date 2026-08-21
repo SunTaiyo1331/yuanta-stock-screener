@@ -16,7 +16,7 @@ function unlockVerifyArea() {
         const expandedTabs = document.getElementById('verify-expanded-tabs');
         if (lockBtn) lockBtn.classList.add('hidden');
         if (expandedTabs) expandedTabs.classList.remove('hidden');
-        switchTab('test');
+        switchTab('etf');
     } else if (pwd !== null) {
         alert('密碼錯誤！');
     }
@@ -51,7 +51,7 @@ function switchTab(tabName) {
     activeTab = tabName;
 
     // 更新所有 Tab 按鈕的高亮樣式
-    const tabs = ['market', 'tea', 'moon', 'test', 'etf', 'fifty'];
+    const tabs = ['market', 'tea', 'moon', 'etf', 'fifty'];
     tabs.forEach(t => {
         const btn = document.getElementById(`tab-${t}`);
         if (!btn) return;
@@ -410,7 +410,6 @@ function renderStrategyData(strategy) {
     
     const titles = {
         'tea': '🍵 茶葉智慧站',
-        'test': '🧪 測試策略結果',
         'moon': '🌙 止月策略',
         'etf': '📊 ETF 區',
         'fifty': '🏆 50大'
