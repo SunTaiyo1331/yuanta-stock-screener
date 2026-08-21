@@ -1,10 +1,7 @@
 import sqlite3
 import requests
-import json
 import time
 from datetime import datetime, timedelta
-import pandas as pd
-import re
 
 DB_PATH = 'market_data.db'
 
