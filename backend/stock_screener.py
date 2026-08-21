@@ -39,6 +39,17 @@ def get_db_data():
     conn.close()
     return df
 
+def get_stock_industry_map():
+    """取得台股全市場產業類別對應表"""
+    try:
+        url = "https://api.finmindtrade.com/api/v4/data?dataset=TaiwanStockInfo"
+        res = requests.get(url, timeout=10)
+        data = res.json()
+        return {d['stock_id']: d.get('industry_category', '') for d in data.get('data', []) if d.get('stock_id')}
+    except Exception as e:
+        print(f"無法取得產業類別: {e}")
+        return {}
+
 def check_monthly_macd_shrink(symbol):
     """檢查月MACD是否也呈現綠柱2連縮"""
     try:
@@ -249,16 +260,19 @@ def run_screener():
     else:
         init_database(1)
     
-    print("【第二步】載入全市場歷史資料...")
+    print("【第二步】載入全市場歷史資料與產業分類...")
+    stock_industry = get_stock_industry_map()
+    # 電子、半導體、電子零組件等相關電子類產業關鍵字
+    target_electronic_keywords = ['電子', '半導體', '零組件', '光電', '電腦', '通信', '資訊服務']
+    
     df_all = get_db_data()
     if df_all.empty:
         print("資料庫為空！")
-        return {"tea": [], "test": [], "moon": [], "fifty": []}
+        return {"tea": [], "moon": [], "fifty": []}
         
     symbol_groups = df_all.groupby('symbol')
     
     tea_candidates = []
-    test_candidates = []
     moon_candidates = []
     fifty_candidates = []
     
@@ -284,15 +298,12 @@ def run_screener():
         last_day = df.iloc[-1]
         prev_day_1 = df.iloc[-2]
         prev_day_2 = df.iloc[-3]
-        prev_day_3 = df.iloc[-4]
         
         if pd.isna(last_day['volume']): continue
         vol_shares = last_day['volume']
         
-        h0, h1, h2, h3 = last_day['Hist'], prev_day_1['Hist'], prev_day_2['Hist'], prev_day_3['Hist']
-        
+        h0, h1, h2 = last_day['Hist'], prev_day_1['Hist'], prev_day_2['Hist']
         shrink_2 = (h0 < 0 and h1 < 0 and h2 < 0 and h0 > h1 and h1 > h2)
-        shrink_3 = (shrink_2 and h3 < 0 and h2 > h3)
         
         stock_info = {
             'symbol': symbol, 'name': last_day['name'],
@@ -303,19 +314,22 @@ def run_screener():
         if vol_shares > 3000000 and last_day['macd'] > 0 and shrink_2:
             tea_candidates.append(stock_info)
             
-        # Test: Volume > 100張, 日MACD綠柱2連縮
-        if vol_shares > 100000 and shrink_2:
-            test_candidates.append(stock_info)
-            
-        # Moon: Volume > 1000, Shrink 3 days
-        if vol_shares > 1000000 and shrink_3:
-            moon_candidates.append(stock_info)
-        
         # Fifty: 0050 成分股 + 綠柱2連縮
         if clean_symbol in fifty_symbols and shrink_2:
             fifty_candidates.append(stock_info)
+            
+        # Moon (止月策略):
+        # 1. 股票只搜 電子、半導體、電子零組件相關產業
+        # 2. 兩個月內最低價 (近 42 個交易日低點)
+        cat = stock_industry.get(clean_symbol, '')
+        is_electronic_sector = any(k in cat for k in target_electronic_keywords)
+        if is_electronic_sector and len(df) >= 42 and vol_shares >= 100000:
+            df_2m = df.tail(42)
+            min_2m_low = df_2m['low'].min()
+            if last_day['low'] <= min_2m_low:
+                moon_candidates.append(stock_info)
 
-    print(f"初篩通過數 -> 茶葉:{len(tea_candidates)} 測試:{len(test_candidates)} 止月:{len(moon_candidates)} 50大:{len(fifty_candidates)}")
+    print(f"初篩通過數 -> 茶葉:{len(tea_candidates)} 止月:{len(moon_candidates)} 50大:{len(fifty_candidates)}")
     
     # ------------------
     # Process Tea
@@ -344,49 +358,12 @@ def run_screener():
         tea_results.append(format_stock_output(s))
 
     # ------------------
-    # Process Test (日&月MACD綠柱2連縮 + 近三月累計營收YoY>0 + 籌碼面)
-    # ------------------
-    test_results = []
-    print("【進階處理】測試 (月MACD + 營收 + 籌碼)...")
-    def process_test(s):
-        sym = s['symbol']
-        # 1. 月MACD綠柱2連縮
-        if not check_monthly_macd_shrink(sym):
-            return None
-        # 2. 近三月累計營收YoY > 0
-        if not check_3month_revenue_yoy(sym):
-            return None
-        # 3. 籌碼面：近兩日外資與投信有合計買超
-        if not check_institutional_buy_2_days(sym):
-            return None
-        return format_stock_output(s)
-        
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        for res in executor.map(process_test, test_candidates):
-            if res: test_results.append(res)
-
-    # ------------------
     # Process Moon
     # ------------------
     moon_results = []
     print("【進階處理】止月...")
     for s in moon_candidates:
-        sym = s['symbol']
-        try:
-            yf_df = yf.download(sym, period="ytd", progress=False)
-            if yf_df.empty: continue
-            if isinstance(yf_df.columns, pd.MultiIndex):
-                yf_df.columns = yf_df.columns.droplevel(1)
-                
-            ytd_low = yf_df['Low'].min()
-            ytd_high = yf_df['High'].max()
-            today_low = s['last_day']['low']
-            today_close = s['last_day']['close']
-            
-            if today_low <= ytd_low or today_close <= (ytd_high * 0.70):
-                moon_results.append(format_stock_output(s))
-        except Exception:
-            continue
+        moon_results.append(format_stock_output(s))
 
     # ------------------
     # Process Fifty (0050 成分股 + 日&月MACD綠柱2連縮)
@@ -404,7 +381,6 @@ def run_screener():
 
     return {
         "tea": tea_results,
-        "test": test_results,
         "moon": moon_results,
         "fifty": fifty_results
     }
@@ -595,7 +571,7 @@ if __name__ == "__main__":
     cursor = conn.cursor()
     
     # Insert today's data
-    for strat, records in [('tea', data['tea']), ('test', data['test']), ('moon', data['moon'])]:
+    for strat, records in [('tea', data['tea']), ('moon', data['moon']), ('fifty', data['fifty'])]:
         for rec in records:
             cursor.execute('''
                 INSERT OR IGNORE INTO screened_history (date, symbol, name, screened_price, strategy)
@@ -617,7 +593,7 @@ if __name__ == "__main__":
     cursor.execute("SELECT symbol, close FROM daily_quotes WHERE date = (SELECT MAX(date) FROM daily_quotes)")
     latest_prices = {row[0].replace('.TW', '').replace('.TWO', ''): row[1] for row in cursor.fetchall()}
     
-    stat_groups = {'tea': {}, 'test': {}, 'moon': {}}
+    stat_groups = {'tea': {}, 'moon': {}, 'fifty': {}}
     for row in history_records:
         r_date, r_symbol, r_name, r_price, r_strat = row
         current_price = latest_prices.get(r_symbol)
@@ -636,7 +612,7 @@ if __name__ == "__main__":
                 # Since we iterate descending, this updates to the earliest price
                 stat_groups[r_strat][r_symbol]["screened_price"] = r_price
 
-    statistics = {'tea': [], 'test': [], 'moon': []}
+    statistics = {'tea': [], 'moon': [], 'fifty': []}
     for strat, groups in stat_groups.items():
         for sym, sym_data in groups.items():
             # sort dates ascending for neatness in tooltip
@@ -670,7 +646,6 @@ if __name__ == "__main__":
         "updated_at": (datetime.utcnow() + timedelta(hours=8)).strftime("%Y-%m-%d %H:%M:%S"),
         "data": {
             "tea": sorted(data['tea'], key=lambda x: x['symbol']),
-            "test": sorted(data['test'], key=lambda x: x['symbol']),
             "moon": sorted(data['moon'], key=lambda x: x['symbol']),
             "fifty": sorted(data['fifty'], key=lambda x: x['symbol']),
             "long_etf": long_etfs_res,
@@ -694,4 +669,4 @@ if __name__ == "__main__":
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(scrub_nans(output), f, ensure_ascii=False, indent=4)
         
-    print(f"分析完成！茶葉:{len(data['tea'])} 測試:{len(data['test'])} 止月:{len(data['moon'])} 50大:{len(data['fifty'])}")
+    print(f"分析完成！茶葉:{len(data['tea'])} 止月:{len(data['moon'])} 50大:{len(data['fifty'])}")
