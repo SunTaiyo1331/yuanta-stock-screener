@@ -258,11 +258,15 @@ def run_screener():
         if clean_symbol in fifty_symbols and shrink_2:
             fifty_candidates.append(stock_info)
 
-        # Moon (止月策略): 電子/半導體/零組件 + 兩個月內最低價
+        # Moon (止月策略): 電子/半導體/零組件 + 近3日內有觸及兩個月最低價
         cat = stock_industry.get(clean_symbol, '')
         is_electronic_sector = any(k in cat for k in target_electronic_keywords)
         if is_electronic_sector and len(df) >= 42 and vol_shares >= 100000:
-            if last_day['low'] <= df.tail(42)['low'].min():
+            df_2m = df.tail(42)
+            min_2m_low = df_2m['low'].min()
+            # 最近 3 個交易日內任一天的最低價觸及 2 個月低點即納入
+            recent_3_lows = df.tail(3)['low']
+            if recent_3_lows.min() <= min_2m_low:
                 moon_candidates.append(stock_info)
 
     print(f"初篩通過數 -> 茶葉:{len(tea_candidates)} 止月:{len(moon_candidates)} 50大:{len(fifty_candidates)}")
