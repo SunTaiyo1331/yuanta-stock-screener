@@ -23,6 +23,10 @@ function unlockVerifyArea() {
 }
 
 async function fetchStockData() {
+    const localStatusEl = () => {
+        const el = document.getElementById('local-data-note');
+        if (el) el.classList.remove('hidden');
+    };
     try {
         const url = 'https://raw.githubusercontent.com/SunTaiyo1331/yuanta-stock-screener/main/data.json?t=' + new Date().getTime();
         const response = await fetch(url);
@@ -37,6 +41,24 @@ async function fetchStockData() {
         renderIndices(cachedData.data.indices);
         switchTab('market');
     } catch (error) {
+        // 本地備援：GitHub 拉不到時改讀本機 frontend/data.json
+        try {
+            console.warn("GitHub 資料來源失敗，改讀本地 data.json:", error.message);
+            const localResp = await fetch('data.json?t=' + new Date().getTime());
+            if (localResp.ok) {
+                cachedData = await localResp.json();
+                if (cachedData.updated_at) {
+                    document.getElementById('last-updated').textContent = `最後更新時間：${cachedData.updated_at}（本地資料）`;
+                }
+                localStatusEl();
+                document.getElementById('loading').classList.add('hidden');
+                renderIndices(cachedData.data.indices);
+                switchTab('market');
+                return;
+            }
+        } catch (e2) {
+            console.warn("本地 data.json 也無法讀取 (若用 file:// 直接開啟請用 開啟頁面.bat 起伺服器):", e2.message);
+        }
         console.error("無法載入股票資料:", error);
         document.getElementById('last-updated').textContent = `資料載入失敗 (${error.message})`;
         const loadingEl = document.getElementById('loading');
