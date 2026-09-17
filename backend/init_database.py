@@ -3,9 +3,7 @@ import requests
 import time
 from datetime import datetime, timedelta
 
-# 固定指向專案根目錄的 market_data.db，避免從不同工作目錄執行時產生新的空 DB
-import os as _os
-DB_PATH = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), 'market_data.db')
+DB_PATH = 'market_data.db'
 
 def create_table():
     conn = sqlite3.connect(DB_PATH)
