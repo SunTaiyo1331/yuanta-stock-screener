@@ -14,215 +14,225 @@
             theme: {
                 extend: {
                     colors: {
-                        'brand-bg': '#0a0c10',
-                        'card-bg': 'rgba(23, 27, 36, 0.7)',
-                        'card-border': 'rgba(255, 255, 255, 0.08)',
-                        'accent-primary': '#3b82f6',
-                        'success': '#10b981',
-                        'danger': '#ef4444'
+                        'brand-bg': '#ffffff',
+                        'section-gray': '#f5f5f7',
+                        'ink': '#1d1d1f',
+                        'ink-soft': '#6e6e73',
+                        'ink-faint': '#86868b',
+                        'card-bg': '#ffffff',
+                        'card-border': '#e8e8ed',
+                        'hairline': '#d2d2d7',
+                        'accent-primary': '#0071e3',
+                        'accent-press': '#0077ed',
+                        'success': '#34c759',
+                        'danger': '#ff3b30'
                     },
                     animation: {
-                        'fade-in': 'fadeIn 0.3s ease-out forwards'
+                        'fade-in': 'fadeIn 0.5s ease-out forwards'
                     },
                     keyframes: {
                         fadeIn: {
-                            '0%': { opacity: '0', transform: 'translateY(6px)' },
+                            '0%': { opacity: '0', transform: 'translateY(8px)' },
                             '100%': { opacity: '1', transform: 'translateY(0)' }
                         }
                     },
                     fontFamily: {
-                        sans: ['Inter', 'Noto Sans TC', 'sans-serif'],
+                        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"SF Pro Text"', '"Helvetica Neue"', '"Noto Sans TC"', 'sans-serif'],
                     },
                     boxShadow: {
-                        'glass': '0 4px 30px rgba(0, 0, 0, 0.1)',
-                        'glow': '0 0 20px rgba(59, 130, 246, 0.4)',
+                        'soft': '0 4px 24px rgba(0, 0, 0, 0.06)',
+                        'soft-lg': '0 12px 40px rgba(0, 0, 0, 0.10)',
+                        'pill': '0 2px 12px rgba(0, 113, 227, 0.25)',
                     }
                 }
             }
         }
     </script>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=4">
+    <!-- 中文字體 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=5">
 </head>
-<body class="bg-brand-bg text-gray-200 min-h-screen antialiased overflow-x-hidden">
-    <!-- 背景裝飾光暈 -->
-    <div class="fixed top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-accent-primary opacity-20 blur-[120px] pointer-events-none z-0"></div>
-    <div class="fixed bottom-[-10%] right-[-10%] w-[30%] h-[30%] rounded-full bg-purple-600 opacity-20 blur-[100px] pointer-events-none z-0"></div>
+<body class="bg-brand-bg text-ink min-h-screen antialiased overflow-x-hidden">
 
-    <!-- 頂部常駐 Header & Navigation Bar -->
-    <header class="sticky top-0 z-50 bg-brand-bg/85 backdrop-blur-xl border-b border-card-border px-4 lg:px-8 py-3.5 shadow-2xl">
-        <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-            
-            <!-- Logo 與 更新時間 -->
-            <div class="flex items-center gap-3 w-full md:w-auto justify-between md:justify-start">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-accent-primary to-purple-600 flex items-center justify-center font-black text-white text-xl shadow-glow">
-                        📈
-                    </div>
-                    <div>
-                        <h1 class="text-xl md:text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
-                            智慧選股站
-                        </h1>
-                        <p id="last-updated" class="text-xs text-gray-400 font-mono">
-                            最後更新時間：載入中...
-                        </p>
-                    </div>
-                </div>
-            </div>
-
+    <!-- Apple 式細窄半透明導覽列 -->
+    <header class="sticky top-0 z-50 bg-white/70 backdrop-blur-2xl border-b border-card-border/70">
+        <div class="max-w-5xl mx-auto px-5 flex items-center justify-between h-12 gap-4">
+            <!-- Logo -->
+            <a href="#" class="shrink-0 text-[15px] font-semibold tracking-tight text-ink">
+                智慧選股站
+            </a>
             <!-- Tab 頁籤列 -->
-            <nav class="flex items-center gap-2 overflow-x-auto max-w-full pb-1 md:pb-0 scrollbar-none w-full md:w-auto">
-                <button onclick="switchTab('market')" id="tab-market" class="tab-btn px-4 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap bg-accent-primary text-white shadow-glow">
-                    🌐 大盤指數
+            <nav class="flex items-center gap-1 overflow-x-auto scrollbar-none">
+                <button onclick="switchTab('market')" id="tab-market" class="tab-btn-active text-[12px] font-medium text-white bg-ink rounded-full px-3.5 py-1.5 whitespace-nowrap transition-colors duration-200">
+                    大盤指數
                 </button>
-                <button onclick="switchTab('tea')" id="tab-tea" class="tab-btn px-4 py-2.5 rounded-xl font-bold text-sm text-gray-400 hover:text-white hover:bg-gray-800/60 transition-all whitespace-nowrap">
-                    🍵 茶葉智慧站
+                <button onclick="switchTab('tea')" id="tab-tea" class="tab-btn text-[12px] font-medium text-ink-soft hover:text-ink rounded-full px-3.5 py-1.5 whitespace-nowrap transition-colors duration-200">
+                    茶葉智慧站
                 </button>
-                <button onclick="switchTab('moon')" id="tab-moon" class="tab-btn px-4 py-2.5 rounded-xl font-bold text-sm text-gray-400 hover:text-white hover:bg-gray-800/60 transition-all whitespace-nowrap">
-                    🌙 止月策略
+                <button onclick="switchTab('moon')" id="tab-moon" class="tab-btn text-[12px] font-medium text-ink-soft hover:text-ink rounded-full px-3.5 py-1.5 whitespace-nowrap transition-colors duration-200">
+                    止月策略
                 </button>
-                
                 <!-- 未解鎖時顯示的 驗證區 按鈕 -->
-                <button onclick="unlockVerifyArea()" id="verify-lock-btn" class="tab-btn px-4 py-2.5 rounded-xl font-bold text-sm text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-all whitespace-nowrap border border-amber-500/30 flex items-center gap-1.5 shadow-sm">
-                    🔒 驗證區
+                <button onclick="unlockVerifyArea()" id="verify-lock-btn" class="text-[12px] font-medium text-ink-soft hover:text-ink rounded-full px-3.5 py-1.5 whitespace-nowrap transition-colors duration-200">
+                    驗證區
                 </button>
-
-                <!-- 解鎖後向右展開的區塊 -->
-                <div id="verify-expanded-tabs" class="hidden flex items-center gap-2 animate-fade-in">
-                    <button onclick="switchTab('etf')" id="tab-etf" class="tab-btn px-4 py-2.5 rounded-xl font-bold text-sm text-gray-400 hover:text-white hover:bg-gray-800/60 transition-all whitespace-nowrap">
-                        📊 ETF 區
+                <!-- 解鎖後展開的區塊 -->
+                <div id="verify-expanded-tabs" class="hidden flex items-center gap-1 animate-fade-in">
+                    <button onclick="switchTab('etf')" id="tab-etf" class="tab-btn text-[12px] font-medium text-ink-soft hover:text-ink rounded-full px-3.5 py-1.5 whitespace-nowrap transition-colors duration-200">
+                        ETF 區
                     </button>
-                    <button onclick="switchTab('fifty')" id="tab-fifty" class="tab-btn px-4 py-2.5 rounded-xl font-bold text-sm text-gray-400 hover:text-white hover:bg-gray-800/60 transition-all whitespace-nowrap">
-                        🏆 50大
+                    <button onclick="switchTab('fifty')" id="tab-fifty" class="tab-btn text-[12px] font-medium text-ink-soft hover:text-ink rounded-full px-3.5 py-1.5 whitespace-nowrap transition-colors duration-200">
+                        50大
                     </button>
                 </div>
             </nav>
+            <!-- 更新時間 -->
+            <div id="last-updated" class="hidden lg:block shrink-0 text-[11px] text-ink-faint">
+                最後更新：載入中
+            </div>
         </div>
     </header>
 
     <!-- 主內容區域 -->
-    <main class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main class="max-w-5xl mx-auto px-5 pb-24">
+
+        <!-- Hero 標語區 -->
+        <section class="text-center pt-16 pb-10 px-4">
+            <h1 class="text-4xl sm:text-5xl md:text-[56px] font-semibold tracking-tight text-ink leading-tight">
+                智慧選股站
+            </h1>
+            <p class="mt-3 text-lg sm:text-xl text-ink-soft font-normal">
+                每日自動篩選，把值得看的標的擺在你面前。
+            </p>
+            <p id="local-data-note" class="hidden mt-4 text-[13px] text-ink-faint">
+                ⚠️ GitHub 資料來源連不上，目前顯示本地 data.json
+            </p>
+        </section>
 
         <!-- 載入中 -->
-        <div id="loading" class="flex justify-center items-center py-20">
+        <div id="loading" class="flex justify-center items-center py-24">
             <div class="loader"></div>
         </div>
 
         <!-- TAB 1: 大盤與指數視圖 (Market View) -->
-        <div id="view-market" class="space-y-8 hidden animate-fade-in">
-            <!-- 全球指數即時速覽列 -->
+        <div id="view-market" class="space-y-14 hidden animate-fade-in">
+            <!-- 全球指數速覽 -->
             <div id="indices-ticker" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
                 <!-- 指數卡片由 JS 動態生成 -->
             </div>
 
-            <!-- 台股加權指數大圖卡 -->
-            <div class="bg-gray-900/60 border border-gray-800 rounded-3xl p-6 backdrop-blur-md shadow-2xl relative w-full">
-                <div class="flex flex-wrap items-center justify-between mb-4 gap-2">
-                    <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
-                        <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">台股加權指數 <span class="text-xs sm:text-sm font-normal text-gray-400 ml-1">TAIEX</span></h2>
-                        <div id="taiex-current-price" class="font-mono text-lg sm:text-xl font-bold text-white ml-2"></div>
-                        <div id="taiex-change" class="font-mono text-xs sm:text-sm px-2 py-0.5 rounded ml-1"></div>
-                    </div>
+            <!-- 台股加權指數大圖 -->
+            <section>
+                <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight text-ink mb-1">台股加權指數</h2>
+                <div class="flex items-baseline gap-3 mb-5 flex-wrap">
+                    <span id="taiex-current-price" class="text-3xl sm:text-4xl font-semibold tracking-tight text-ink"></span>
+                    <span id="taiex-change" class="text-[15px] font-medium"></span>
+                    <span class="text-[13px] text-ink-faint">TAIEX</span>
                 </div>
-                <div id="taiex-chart" class="w-full h-[360px] sm:h-[420px] rounded-xl bg-[#0e121a] border border-gray-800/80"></div>
-            </div>
+                <div class="rounded-2xl bg-white border border-card-border shadow-soft p-2 sm:p-4">
+                    <div id="taiex-chart" class="w-full h-[360px] sm:h-[420px]"></div>
+                </div>
+            </section>
 
-            <!-- 美股重要指數 K 線圖區域 -->
-            <div>
-                <h3 class="text-2xl font-extrabold text-white tracking-tight mb-6 flex items-center gap-2">
-                    🇺🇸 美股重要指數 K 線圖
-                </h3>
+            <!-- 美股重要指數 -->
+            <section>
+                <h2 class="text-2xl sm:text-3xl font-semibold tracking-tight text-ink mb-5">美股重要指數</h2>
                 <div id="us-indices-charts" class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- 美股指數圖表將由 JS 動態生成 -->
                 </div>
-            </div>
+            </section>
         </div>
 
         <!-- 選股 / ETF 區塊視圖 (Screener Views) -->
-        <div id="view-screener" class="hidden space-y-6 animate-fade-in">
-            <div class="flex justify-between items-center pb-4 border-b border-gray-800">
-                <h2 id="screener-title" class="text-3xl font-extrabold text-white tracking-tight">
+        <div id="view-screener" class="hidden space-y-8 animate-fade-in">
+            <div>
+                <h2 id="screener-title" class="text-3xl sm:text-4xl font-semibold tracking-tight text-ink">
                     策略結果
                 </h2>
-                <div class="text-xs text-gray-500">
+                <p class="mt-2 text-[15px] text-ink-soft">
                     顯示符合條件之最新股票
-                </div>
+                </p>
             </div>
 
             <!-- 股票列表 Grid -->
-            <div id="stock-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 hidden">
+            <div id="stock-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6 hidden">
                 <!-- 卡片由 JS 動態生成 -->
             </div>
 
             <!-- Empty State -->
-            <div id="empty-state" class="empty-state hidden">
-                <div class="empty-icon">🔍</div>
-                <h2>今日無符合條件的標的</h2>
-                <p>目前沒有股票同時滿足此策略的嚴苛條件，請明日再回來查看。</p>
+            <div id="empty-state" class="empty-state hidden text-center py-24">
+                <p class="text-2xl font-semibold text-ink">今日無符合條件的標的</p>
+                <p class="mt-2 text-[15px] text-ink-soft">目前沒有股票同時滿足此策略的嚴苛條件，請明日再回來查看。</p>
             </div>
 
             <!-- Table Container (For ETFs) -->
-            <div id="table-container" class="hidden mt-6">
+            <div id="table-container" class="hidden space-y-10">
                 <!-- 長期 ETF 表格 -->
-                <h3 id="long-etf-title" class="text-xl font-bold text-white mb-4 hidden">📈 長期 ETF</h3>
-                <div id="long-etf-table-wrap" class="overflow-x-auto rounded-2xl border border-gray-800 bg-gray-900/60 backdrop-blur-md shadow-2xl mb-8 hidden">
-                    <table class="w-full text-left border-collapse whitespace-nowrap">
-                        <thead id="long-etf-table-head" class="bg-gray-800/80 border-b border-gray-700 text-gray-300"></thead>
-                        <tbody id="long-etf-table-body" class="divide-y divide-gray-800/50"></tbody>
-                    </table>
-                </div>
+                <section>
+                    <h3 id="long-etf-title" class="text-xl font-semibold tracking-tight text-ink mb-3 hidden">長期 ETF</h3>
+                    <div id="long-etf-table-wrap" class="overflow-x-auto etf-table-wrap hidden">
+                        <table class="w-full text-left whitespace-nowrap">
+                            <thead id="long-etf-table-head" class="text-[12px] uppercase tracking-wide text-ink-faint border-b border-hairline"></thead>
+                            <tbody id="long-etf-table-body" class="divide-y divide-card-border"></tbody>
+                        </table>
+                    </div>
+                </section>
                 <!-- 高股息 ETF 表格 -->
-                <h3 id="high-div-title" class="text-xl font-bold text-white mb-4 hidden">💸 高股息 ETF</h3>
-                <div id="high-div-table-wrap" class="overflow-x-auto rounded-2xl border border-gray-800 bg-gray-900/60 backdrop-blur-md shadow-2xl hidden">
-                    <table class="w-full text-left border-collapse whitespace-nowrap">
-                        <thead id="high-div-table-head" class="bg-gray-800/80 border-b border-gray-700 text-gray-300"></thead>
-                        <tbody id="high-div-table-body" class="divide-y divide-gray-800/50"></tbody>
-                    </table>
-                </div>
+                <section>
+                    <h3 id="high-div-title" class="text-xl font-semibold tracking-tight text-ink mb-3 hidden">高股息 ETF</h3>
+                    <div id="high-div-table-wrap" class="overflow-x-auto etf-table-wrap hidden">
+                        <table class="w-full text-left whitespace-nowrap">
+                            <thead id="high-div-table-head" class="text-[12px] uppercase tracking-wide text-ink-faint border-b border-hairline"></thead>
+                            <tbody id="high-div-table-body" class="divide-y divide-card-border"></tbody>
+                        </table>
+                    </div>
+                </section>
             </div>
         </div>
 
+        <!-- 頁尾 -->
+        <footer class="border-t border-card-border pt-6 mt-8">
+            <p class="text-[12px] text-ink-faint">
+                資料來源：TWSE・TPEx・FinMind・Yahoo Finance　｜　本網頁僅供研究參考，不構成投資建議
+            </p>
+        </footer>
     </main>
 
-    <!-- 範本: 股票卡片 -->
+    <!-- 範本: 股票卡片（Apple 式極簡卡） -->
     <template id="stock-card-template">
-        <div class="stock-card group relative rounded-2xl bg-card-bg border border-card-border p-6 backdrop-blur-md overflow-hidden transition-all duration-300 hover:shadow-glow hover:-translate-y-1">
-            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-            
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <h3 class="text-2xl font-bold text-white stock-name tracking-wide"></h3>
-                    <p class="text-gray-400 font-mono text-sm stock-symbol mt-1"></p>
+        <div class="stock-card relative rounded-2xl bg-white border border-card-border shadow-soft overflow-hidden transition-all duration-300 hover:shadow-soft-lg">
+            <div class="px-6 pt-6 pb-5">
+                <div class="flex justify-between items-start mb-5">
+                    <div>
+                        <h3 class="text-xl font-semibold tracking-tight text-ink stock-name"></h3>
+                        <p class="text-[13px] text-ink-faint stock-symbol mt-0.5"></p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-2xl font-semibold tracking-tight text-ink stock-price"></div>
+                        <div class="text-[13px] font-medium stock-change mt-1">
+                            <span class="change-icon mr-0.5"></span><span class="change-value"></span>
+                            <span class="change-percent ml-1"></span>
+                        </div>
+                    </div>
                 </div>
-                <div class="text-right">
-                    <div class="text-3xl font-bold text-white stock-price font-mono"></div>
-                    <div class="text-sm font-semibold stock-change flex items-center justify-end mt-1 font-mono">
-                        <span class="change-icon mr-1"></span>
-                        <span class="change-value"></span>
-                        <span class="change-percent ml-1 text-xs px-2 py-0.5 rounded-full bg-opacity-20"></span>
+
+                <div class="flex justify-between items-center text-[13px]">
+                    <div>
+                        <span class="text-ink-faint">成交量</span>
+                        <span class="ml-2 text-ink font-medium"><span class="stock-volume"></span> 張</span>
+                    </div>
+                    <div>
+                        <span class="text-ink-faint">建議購入價</span>
+                        <span class="ml-2 text-accent-primary font-semibold"><span class="stock-suggest-price"></span></span>
                     </div>
                 </div>
             </div>
 
-            <div class="h-px w-full bg-gray-800 my-3"></div>
-
-            <div class="flex justify-between items-center px-2">
-                <div class="metric-item text-left">
-                    <div class="text-[10px] text-gray-500 mb-0.5">成交量</div>
-                    <div class="font-mono text-gray-300 text-sm"><span class="stock-volume font-bold text-white"></span> 張</div>
-                </div>
-                <div class="metric-item text-right">
-                    <div class="text-[10px] text-accent-primary/80 mb-0.5">💡 建議購入價</div>
-                    <div class="font-mono text-accent-primary font-bold text-sm"><span class="stock-suggest-price"></span></div>
-                </div>
-            </div>
-            
-            <!-- ECharts 專業圖表容器 -->
-            <div class="chart-container mt-3 w-full h-[450px] rounded-lg bg-[#0e121a] border border-gray-800"></div>
+            <!-- ECharts 圖表容器 -->
+            <div class="chart-container w-full h-[450px] border-t border-card-border"></div>
         </div>
     </template>
 
-    <script src="app.js?v=16"></script>
+    <script src="app.js?v=17"></script>
 </body>
 </html>
