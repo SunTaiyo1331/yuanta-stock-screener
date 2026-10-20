@@ -1,25 +1,21 @@
 let cachedData = null;
 let activeTab = 'market';
-let verifyUnlocked = false;
 let chartInstances = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchStockData();
 });
 
-function unlockVerifyArea() {
-    if (verifyUnlocked) return;
-    const pwd = prompt('請輸入密碼：');
-    if (pwd === '5957+') {
-        verifyUnlocked = true;
-        const lockBtn = document.getElementById('verify-lock-btn');
-        const expandedTabs = document.getElementById('verify-expanded-tabs');
-        if (lockBtn) lockBtn.classList.add('hidden');
-        if (expandedTabs) expandedTabs.classList.remove('hidden');
-        switchTab('etf');
-    } else if (pwd !== null) {
-        alert('密碼錯誤！');
+function onDataLoaded(isLocal) {
+    if (cachedData.updated_at) {
+        document.getElementById('last-updated').textContent =
+            `最後更新時間：${cachedData.updated_at}${isLocal ? '（本地資料）' : ''}`;
     }
+    document.getElementById('loading').classList.add('hidden');
+    renderIndices(cachedData.data.indices);
+    // 支援網址 #etf / #tea ... 直接開啟指定頁籤
+    const hashTab = location.hash.replace('#', '');
+    switchTab(['market', 'tea', 'moon', 'etf', 'fifty'].includes(hashTab) ? hashTab : 'market');
 }
 
 async function fetchStockData() {
@@ -27,37 +23,51 @@ async function fetchStockData() {
         const el = document.getElementById('local-data-note');
         if (el) el.classList.remove('hidden');
     };
+
+    // 在本機 (直接雙擊 file:// 或 開啟頁面.bat localhost) 瀏覽時，優先讀本機最新資料，
+    // 避免 file:// 因瀏覽器 CORS 攔截 fetch('data.json') 而誤抓 GitHub 上的舊版資料。
+    const isLocal = location.protocol === 'file:' || ['localhost', '127.0.0.1', ''].includes(location.hostname);
+    if (isLocal) {
+        if (location.protocol !== 'file:') {
+            try {
+                const localResp = await fetch('data.json?t=' + new Date().getTime());
+                if (localResp.ok) {
+                    cachedData = await localResp.json();
+                    localStatusEl();
+                    onDataLoaded(true);
+                    return;
+                }
+            } catch (e) {
+                console.warn('本機 data.json fetch 失敗，改用內嵌 data.js:', e.message);
+            }
+        }
+        if (window.__LOCAL_STOCK_DATA__) {
+            cachedData = window.__LOCAL_STOCK_DATA__;
+            localStatusEl();
+            onDataLoaded(true);
+            return;
+        }
+    }
+
     try {
         const url = 'https://raw.githubusercontent.com/SunTaiyo1331/yuanta-stock-screener/main/data.json?t=' + new Date().getTime();
         const response = await fetch(url);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         cachedData = await response.json();
-        
-        if (cachedData.updated_at) {
-            document.getElementById('last-updated').textContent = `最後更新時間：${cachedData.updated_at}`;
-        }
-        
-        document.getElementById('loading').classList.add('hidden');
-        renderIndices(cachedData.data.indices);
-        switchTab('market');
+        onDataLoaded(false);
     } catch (error) {
         // 本地備援：GitHub 拉不到時改讀本機 frontend/data.json
         try {
-            console.warn("GitHub 資料來源失敗，改讀本地 data.json:", error.message);
+            console.warn("GitHub 資料來源連線中斷，改讀本地 data.json:", error.message);
             const localResp = await fetch('data.json?t=' + new Date().getTime());
             if (localResp.ok) {
                 cachedData = await localResp.json();
-                if (cachedData.updated_at) {
-                    document.getElementById('last-updated').textContent = `最後更新時間：${cachedData.updated_at}（本地資料）`;
-                }
                 localStatusEl();
-                document.getElementById('loading').classList.add('hidden');
-                renderIndices(cachedData.data.indices);
-                switchTab('market');
+                onDataLoaded(true);
                 return;
             }
         } catch (e2) {
-            console.warn("本地 data.json 也無法讀取 (若用 file:// 直接開啟請用 開啟頁面.bat 起伺服器):", e2.message);
+            console.warn("本地 data.json 也無法讀取 (若用 file:// 開啟請透過 開啟頁面.bat 啟動伺服器):", e2.message);
         }
         console.error("無法載入股票資料:", error);
         document.getElementById('last-updated').textContent = `資料載入失敗 (${error.message})`;
@@ -72,15 +82,15 @@ async function fetchStockData() {
 function switchTab(tabName) {
     activeTab = tabName;
 
-    // 更新所有 Tab 按鈕的高亮樣式
+    // 更新所有 Tab 按鈕的高亮樣式 (Windows 11 深色模式風格)
     const tabs = ['market', 'tea', 'moon', 'etf', 'fifty'];
     tabs.forEach(t => {
         const btn = document.getElementById(`tab-${t}`);
         if (!btn) return;
         if (t === tabName) {
-            btn.className = "tab-btn px-4 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap bg-accent-primary text-white shadow-glow";
+            btn.className = "tab-btn px-3.5 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap bg-accent-primary text-white shadow-win-active transition-all";
         } else {
-            btn.className = "tab-btn px-4 py-2.5 rounded-xl font-bold text-sm text-gray-400 hover:text-white hover:bg-gray-800/60 transition-all whitespace-nowrap";
+            btn.className = "tab-btn px-3.5 py-1.5 rounded-md text-xs font-medium text-ink-soft hover:text-ink hover:bg-white/5 whitespace-nowrap transition-all";
         }
     });
 
@@ -90,7 +100,7 @@ function switchTab(tabName) {
     if (tabName === 'market') {
         viewScreener.classList.add('hidden');
         viewMarket.classList.remove('hidden');
-        if (cachedData && cachedData.data.indices) {
+        if (cachedData && cachedData.data && cachedData.data.indices) {
             renderIndices(cachedData.data.indices);
         }
         // 延遲強制觸發所有圖表 resize 確保滿版正常
@@ -123,10 +133,10 @@ function renderIndices(indices) {
         const colorClass = isUp ? 'text-danger' : 'text-success';
         const sign = isUp ? '+' : '';
         html += `
-            <div class="flex flex-col items-center justify-center p-3 bg-gray-900/60 border border-gray-800 rounded-2xl shadow-lg backdrop-blur-md">
-                <span class="text-xs text-gray-400 font-semibold mb-1 truncate w-full text-center">${idx.name}</span>
+            <div class="flex flex-col items-center justify-center p-3 bg-card-bg border border-card-border rounded-xl shadow-win-card backdrop-blur-md hover:border-white/20 transition-all">
+                <span class="text-xs text-ink-soft font-medium mb-1 truncate w-full text-center">${idx.name}</span>
                 <div class="flex flex-col items-center font-mono">
-                    <span class="text-white font-bold text-sm">${idx.price ? idx.price.toLocaleString() : '-'}</span>
+                    <span class="text-ink font-bold text-sm">${idx.price ? idx.price.toLocaleString() : '-'}</span>
                     <span class="text-[11px] font-semibold ${colorClass}">${sign}${idx.change} (${sign}${idx.change_percent}%)</span>
                 </div>
             </div>
@@ -137,16 +147,82 @@ function renderIndices(indices) {
     renderUSIndicesCharts(indices);
 }
 
+function formatVolumeWithUnit(val, unitType) {
+    if (val === null || val === undefined || val === '-') return '-';
+    const num = Number(val);
+    if (isNaN(num) || num <= 0) return '-';
+    if (unitType === '億元') {
+        return `${num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} 億元`;
+    }
+    if (unitType === '股') {
+        if (num >= 1e8) {
+            return `${(num / 1e8).toFixed(2)} 億股`;
+        }
+        if (num >= 1e4) {
+            return `${(num / 1e4).toFixed(0).toLocaleString()} 萬股`;
+        }
+        return `${num.toLocaleString()} 股`;
+    }
+    if (unitType === '張') {
+        return `${num.toLocaleString()} 張`;
+    }
+    return num.toLocaleString();
+}
+
+function makeEChartsTooltipFormatter(unitType) {
+    return function (params) {
+        if (!params || !params.length) return '';
+        const dateLabel = params[0].axisValueLabel || params[0].name || '';
+        let html = `<div style="color:#f3f4f6;font-size:12px;line-height:1.6;min-width:155px;">`;
+        html += `<div style="font-weight:700;color:#60cdff;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:2px;">📅 ${dateLabel}</div>`;
+        params.forEach(p => {
+            if (p.seriesType === 'candlestick' && Array.isArray(p.data)) {
+                const openVal = p.data[1];
+                const closeVal = p.data[2];
+                const lowVal = p.data[3];
+                const highVal = p.data[4];
+                const isUp = closeVal >= openVal;
+                const cColor = isUp ? '#f87171' : '#34d399';
+                html += `<div style="display:flex;justify-content:space-between;gap:12px;"><span style="color:#b0b8c4;">開盤</span><span style="font-family:monospace;font-weight:600;color:#f3f4f6;">${Number(openVal).toLocaleString()}</span></div>`;
+                html += `<div style="display:flex;justify-content:space-between;gap:12px;"><span style="color:#b0b8c4;">收盤</span><span style="font-family:monospace;font-weight:700;color:${cColor};">${Number(closeVal).toLocaleString()}</span></div>`;
+                html += `<div style="display:flex;justify-content:space-between;gap:12px;"><span style="color:#b0b8c4;">最高</span><span style="font-family:monospace;font-weight:600;color:#f87171;">${Number(highVal).toLocaleString()}</span></div>`;
+                html += `<div style="display:flex;justify-content:space-between;gap:12px;"><span style="color:#b0b8c4;">最低</span><span style="font-family:monospace;font-weight:600;color:#34d399;">${Number(lowVal).toLocaleString()}</span></div>`;
+            } else {
+                const rawVal = (p.data && typeof p.data === 'object' && 'value' in p.data) ? p.data.value : p.value;
+                if (rawVal === null || rawVal === undefined || rawVal === '-') return;
+                const isVol = (p.seriesName === '成交量' || p.seriesName === '成交金額');
+                if (isVol && (!rawVal || rawVal === 0)) return;
+                const formattedVal = isVol
+                    ? formatVolumeWithUnit(rawVal, unitType)
+                    : (typeof rawVal === 'number' ? rawVal.toLocaleString() : rawVal);
+                html += `<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;">
+                    <span style="color:#b0b8c4;">${p.marker || ''}${p.seriesName}</span>
+                    <span style="font-family:monospace;font-weight:600;color:#f3f4f6;">${formattedVal}</span>
+                </div>`;
+            }
+        });
+        html += `</div>`;
+        return html;
+    };
+}
+
 function renderTaiexChart(idx) {
     document.getElementById('taiex-current-price').textContent = idx.price ? idx.price.toLocaleString() : '';
     const isUp = idx.change >= 0;
     const sign = isUp ? '+' : '';
-    const colorClass = isUp ? 'text-danger bg-danger/10' : 'text-success bg-success/10';
+    const colorClass = isUp ? 'text-danger bg-danger/15' : 'text-success bg-success/15';
     const changeEl = document.getElementById('taiex-change');
     changeEl.textContent = `${sign}${idx.change} (${sign}${idx.change_percent}%)`;
-    changeEl.className = `font-mono text-xs sm:text-sm px-2 py-0.5 rounded ml-2 ${colorClass}`;
+    changeEl.className = `font-mono text-xs sm:text-sm px-2.5 py-0.5 rounded-md ${colorClass}`;
     
     if (!idx.history || idx.history.length === 0) return;
+
+    const latestHist = idx.history[idx.history.length - 1];
+    const volBadge = document.getElementById('taiex-volume-badge');
+    if (volBadge && latestHist && latestHist.volume) {
+        volBadge.textContent = `成交金額 ${formatVolumeWithUnit(latestHist.volume, '億元')}`;
+        volBadge.classList.remove('hidden');
+    }
     
     const chartDom = document.getElementById('taiex-chart');
     if (!chartDom) return;
@@ -168,7 +244,7 @@ function renderTaiexChart(idx) {
         values.push([item.open, item.close, item.low, item.high]);
         volumes.push({
             value: item.volume,
-            itemStyle: { color: item.close >= item.open ? '#ef4444' : '#10b981' }
+            itemStyle: { color: item.close >= item.open ? '#f87171' : '#34d399' }
         });
         ma5.push(item.ma5);
         ma20.push(item.ma20);
@@ -178,9 +254,10 @@ function renderTaiexChart(idx) {
         tooltip: {
             trigger: 'axis',
             axisPointer: { type: 'cross' },
-            backgroundColor: 'rgba(23, 27, 36, 0.9)',
-            borderColor: '#374151',
-            textStyle: { color: '#e5e7eb', fontSize: 12 },
+            backgroundColor: 'rgba(28, 31, 38, 0.96)',
+            borderColor: '#3b4252',
+            textStyle: { color: '#f3f4f6', fontSize: 12 },
+            formatter: makeEChartsTooltipFormatter('億元')
         },
         grid: [
             { left: 65, right: 20, top: '10%', height: '56%' }, 
@@ -192,22 +269,22 @@ function renderTaiexChart(idx) {
                 data: categoryData,
                 gridIndex: 0,
                 axisLabel: { show: false },
-                axisLine: { lineStyle: { color: '#4b5563' } }
+                axisLine: { lineStyle: { color: '#3b4252' } }
             },
             {
                 type: 'category',
                 data: categoryData,
                 gridIndex: 1,
-                axisLabel: { color: '#9ca3af', fontSize: 10 },
-                axisLine: { lineStyle: { color: '#4b5563' } }
+                axisLabel: { color: '#8b949e', fontSize: 10 },
+                axisLine: { lineStyle: { color: '#3b4252' } }
             }
         ],
         yAxis: [
             {
                 scale: true,
                 gridIndex: 0,
-                splitLine: { show: true, lineStyle: { color: '#1f2937', type: 'dashed' } },
-                axisLabel: { color: '#9ca3af', fontSize: 10 }
+                splitLine: { show: true, lineStyle: { color: '#272c37', type: 'dashed' } },
+                axisLabel: { color: '#8b949e', fontSize: 10 }
             },
             {
                 gridIndex: 1,
@@ -226,10 +303,10 @@ function renderTaiexChart(idx) {
                 xAxisIndex: 0,
                 yAxisIndex: 0,
                 itemStyle: {
-                    color: '#ef4444', 
-                    color0: '#10b981', 
-                    borderColor: '#ef4444',
-                    borderColor0: '#10b981'
+                    color: '#f87171', 
+                    color0: '#34d399', 
+                    borderColor: '#f87171',
+                    borderColor0: '#34d399'
                 }
             },
             {
@@ -247,11 +324,11 @@ function renderTaiexChart(idx) {
                 data: ma20,
                 smooth: true,
                 showSymbol: false,
-                itemStyle: { color: '#38bdf8' },
+                itemStyle: { color: '#60cdff' },
                 lineStyle: { width: 1.5 } 
             },
             {
-                name: '成交量',
+                name: '成交金額',
                 type: 'bar',
                 xAxisIndex: 1,
                 yAxisIndex: 1,
@@ -281,25 +358,31 @@ function renderUSIndicesCharts(indices) {
         if (!item || !item.history || item.history.length === 0) return;
 
         const cardDom = document.createElement('div');
-        cardDom.className = "bg-gray-900/60 border border-gray-800 rounded-3xl p-5 backdrop-blur-md shadow-2xl relative w-full";
+        cardDom.className = "bg-card-bg border border-card-border rounded-xl p-4 shadow-win-card relative w-full";
 
         const isUp = item.change >= 0;
         const sign = isUp ? '+' : '';
-        const colorClass = isUp ? 'text-danger bg-danger/10' : 'text-success bg-success/10';
+        const colorClass = isUp ? 'text-danger bg-danger/15' : 'text-success bg-success/15';
+
+        const latestHist = item.history[item.history.length - 1];
+        const latestVolText = (latestHist && latestHist.volume > 0)
+            ? `量 ${formatVolumeWithUnit(latestHist.volume, '股')}`
+            : '';
 
         const chartId = `us-chart-${idx}`;
         cardDom.innerHTML = `
             <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <div class="flex items-center gap-2">
-                    <h4 class="text-lg font-bold text-white tracking-tight">${item.name}</h4>
-                    <span class="text-xs text-gray-400 font-mono">${item.symbol || ''}</span>
+                    <h4 class="text-base font-bold text-ink tracking-tight">${item.name}</h4>
+                    <span class="text-xs text-ink-faint font-mono">${item.symbol || ''}</span>
                 </div>
-                <div class="flex items-center font-mono">
-                    <span class="text-white font-bold text-base mr-2">${item.price ? item.price.toLocaleString() : ''}</span>
+                <div class="flex items-center font-mono gap-2 flex-wrap">
+                    ${latestVolText ? `<span class="text-[11px] text-ink-soft bg-white/5 px-2 py-0.5 rounded">${latestVolText}</span>` : ''}
+                    <span class="text-ink font-bold text-base">${item.price ? item.price.toLocaleString() : ''}</span>
                     <span class="text-xs px-2 py-0.5 rounded font-semibold ${colorClass}">${sign}${item.change} (${sign}${item.change_percent}%)</span>
                 </div>
             </div>
-            <div id="${chartId}" class="w-full h-[300px] rounded-xl bg-[#0e121a] border border-gray-800/80"></div>
+            <div id="${chartId}" class="w-full h-[280px] rounded-lg bg-[#1a1c22] border border-white/5"></div>
         `;
 
         container.appendChild(cardDom);
@@ -331,7 +414,7 @@ function renderGenericIndexChart(chartId, history) {
         values.push([item.open, item.close, item.low, item.high]);
         volumes.push({
             value: item.volume,
-            itemStyle: { color: item.close >= item.open ? '#ef4444' : '#10b981' }
+            itemStyle: { color: item.close >= item.open ? '#f87171' : '#34d399' }
         });
         ma5.push(item.ma5);
         ma20.push(item.ma20);
@@ -341,9 +424,10 @@ function renderGenericIndexChart(chartId, history) {
         tooltip: {
             trigger: 'axis',
             axisPointer: { type: 'cross' },
-            backgroundColor: 'rgba(23, 27, 36, 0.9)',
-            borderColor: '#374151',
-            textStyle: { color: '#e5e7eb', fontSize: 11 },
+            backgroundColor: 'rgba(28, 31, 38, 0.96)',
+            borderColor: '#3b4252',
+            textStyle: { color: '#f3f4f6', fontSize: 11 },
+            formatter: makeEChartsTooltipFormatter('股')
         },
         grid: [
             { left: 60, right: 15, top: '10%', height: '56%' }, 
@@ -355,22 +439,22 @@ function renderGenericIndexChart(chartId, history) {
                 data: categoryData,
                 gridIndex: 0,
                 axisLabel: { show: false },
-                axisLine: { lineStyle: { color: '#4b5563' } }
+                axisLine: { lineStyle: { color: '#3b4252' } }
             },
             {
                 type: 'category',
                 data: categoryData,
                 gridIndex: 1,
-                axisLabel: { color: '#9ca3af', fontSize: 9 },
-                axisLine: { lineStyle: { color: '#4b5563' } }
+                axisLabel: { color: '#8b949e', fontSize: 9 },
+                axisLine: { lineStyle: { color: '#3b4252' } }
             }
         ],
         yAxis: [
             {
                 scale: true,
                 gridIndex: 0,
-                splitLine: { show: true, lineStyle: { color: '#1f2937', type: 'dashed' } },
-                axisLabel: { color: '#9ca3af', fontSize: 9 }
+                splitLine: { show: true, lineStyle: { color: '#272c37', type: 'dashed' } },
+                axisLabel: { color: '#8b949e', fontSize: 9 }
             },
             {
                 gridIndex: 1,
@@ -389,10 +473,10 @@ function renderGenericIndexChart(chartId, history) {
                 xAxisIndex: 0,
                 yAxisIndex: 0,
                 itemStyle: {
-                    color: '#ef4444', 
-                    color0: '#10b981', 
-                    borderColor: '#ef4444',
-                    borderColor0: '#10b981'
+                    color: '#f87171', 
+                    color0: '#34d399', 
+                    borderColor: '#f87171',
+                    borderColor0: '#34d399'
                 }
             },
             {
@@ -410,7 +494,7 @@ function renderGenericIndexChart(chartId, history) {
                 data: ma20,
                 smooth: true,
                 showSymbol: false,
-                itemStyle: { color: '#38bdf8' },
+                itemStyle: { color: '#60cdff' },
                 lineStyle: { width: 1.2 } 
             },
             {
@@ -428,13 +512,13 @@ function renderGenericIndexChart(chartId, history) {
 }
 
 function renderStrategyData(strategy) {
-    if (!cachedData) return;
+    if (!cachedData || !cachedData.data) return;
     
     const titles = {
-        'tea': '🍵 茶葉智慧站',
-        'moon': '🌙 止月策略',
-        'etf': '📊 ETF 區',
-        'fifty': '🏆 50大'
+        'tea': '觀察區法人篇',
+        'moon': '觀察區低檔科技股',
+        'etf': '📊 ETF 專區',
+        'fifty': '觀察區元大50'
     };
     
     document.getElementById('screener-title').textContent = titles[strategy] || strategy;
@@ -463,15 +547,18 @@ function renderStrategyData(strategy) {
             grid.classList.add('hidden');
             tableContainer.classList.remove('hidden');
             
-            if (longEtfs.length > 0) {
-                document.getElementById('long-etf-title').classList.remove('hidden');
-                document.getElementById('long-etf-table-wrap').classList.remove('hidden');
-                renderETFTable('long_etf', longEtfs, 'long-etf-table-head', 'long-etf-table-body');
-            }
+            // 先渲染高股息 ETF (投資人最關注)
             if (highDivEtfs.length > 0) {
                 document.getElementById('high-div-title').classList.remove('hidden');
                 document.getElementById('high-div-table-wrap').classList.remove('hidden');
                 renderETFTable('high_div', highDivEtfs, 'high-div-table-head', 'high-div-table-body');
+            }
+
+            // 再渲染長期市值型 ETF
+            if (longEtfs.length > 0) {
+                document.getElementById('long-etf-title').classList.remove('hidden');
+                document.getElementById('long-etf-table-wrap').classList.remove('hidden');
+                renderETFTable('long_etf', longEtfs, 'long-etf-table-head', 'long-etf-table-body');
             }
         }
     } else {
@@ -510,26 +597,22 @@ function renderStocks(stocks) {
         const changeIconEl = clone.querySelector('.change-icon');
         
         if (stock.change === null || stock.change === undefined) {
-            changeEl.classList.add('text-gray-400');
-            changePercentEl.classList.add('bg-gray-800', 'text-gray-300');
+            changeEl.classList.add('text-ink-faint', 'bg-white/5');
             changeValueEl.textContent = '-';
             changePercentEl.textContent = '-';
-            changeIconEl.textContent = '-';
+            changeIconEl.textContent = '';
         } else if (stock.change > 0) {
-            changeEl.classList.add('text-danger');
-            changePercentEl.classList.add('bg-danger/20', 'text-danger');
+            changeEl.classList.add('text-danger', 'bg-danger/15');
             changeValueEl.textContent = `+${formatPrice(stock.change)}`;
             changePercentEl.textContent = `+${stock.change_percent}%`;
             changeIconEl.textContent = '▲';
         } else if (stock.change < 0) {
-            changeEl.classList.add('text-success');
-            changePercentEl.classList.add('bg-success/20', 'text-success');
+            changeEl.classList.add('text-success', 'bg-success/15');
             changeValueEl.textContent = formatPrice(stock.change);
             changePercentEl.textContent = `${stock.change_percent}%`;
             changeIconEl.textContent = '▼';
         } else {
-            changeEl.classList.add('text-gray-400');
-            changePercentEl.classList.add('bg-gray-800', 'text-gray-300');
+            changeEl.classList.add('text-ink-soft', 'bg-white/5');
             changeValueEl.textContent = '0.00';
             changePercentEl.textContent = '0.00%';
             changeIconEl.textContent = '-';
@@ -561,49 +644,72 @@ function renderStocks(stocks) {
 function renderETFTable(strategy, etfs, theadId, tbodyId) {
     const thead = document.getElementById(theadId || 'etf-table-head');
     const tbody = document.getElementById(tbodyId || 'etf-table-body');
-    
-    thead.innerHTML = '';
-    tbody.innerHTML = '';
-    
-    let headerHtml = '<tr><th class="py-4 px-6 text-left">代號</th><th class="py-4 px-6 text-left">名稱</th><th class="py-4 px-6 text-right">股價</th>';
-    if (strategy === 'long_etf') {
-        headerHtml += '<th class="py-4 px-6 text-right">去年績效</th><th class="py-4 px-6 text-right">本年度迄今績效</th></tr>';
-    } else {
-        headerHtml += '<th class="py-4 px-6 text-center">配息頻率</th><th class="py-4 px-6 text-right">去年殖利率</th><th class="py-4 px-6 text-right">今年累計殖利率</th><th class="py-4 px-6 text-right">去年績效</th><th class="py-4 px-6 text-right">本年度迄今績效</th></tr>';
-    }
-    thead.innerHTML = headerHtml;
-    
-    etfs.forEach(etf => {
-        let ytdColor = (etf.ytd !== null && etf.ytd !== undefined && etf.ytd >= 0) ? 'text-danger' : 'text-success';
-        let ytdVal = (etf.ytd !== null && etf.ytd !== undefined) ? (etf.ytd > 0 ? `+${etf.ytd.toFixed(2)}%` : `${etf.ytd.toFixed(2)}%`) : '-';
-        
-        let lastYearColor = (etf.last_year_perf !== null && etf.last_year_perf !== undefined && etf.last_year_perf >= 0) ? 'text-danger' : 'text-success';
-        let lastYearVal = (etf.last_year_perf !== null && etf.last_year_perf !== undefined) ? (etf.last_year_perf > 0 ? `+${etf.last_year_perf.toFixed(2)}%` : `${etf.last_year_perf.toFixed(2)}%`) : '-';
 
-        let priceVal = (etf.price !== null && etf.price !== undefined) ? etf.price : '-';
-        
-        let rowHtml = `<tr class="border-b border-gray-800 hover:bg-white/5 transition-colors">
-            <td class="py-4 px-6 font-mono text-gray-400">${etf.symbol}</td>
-            <td class="py-4 px-6 font-bold text-white text-lg">${etf.name}</td>
-            <td class="py-4 px-6 font-mono text-right text-lg">${priceVal}</td>`;
-            
-        if (strategy === 'long_etf') {
-            rowHtml += `<td class="py-4 px-6 font-mono font-bold text-right ${lastYearColor}">${lastYearVal}</td>`;
-            rowHtml += `<td class="py-4 px-6 font-mono font-bold text-right ${ytdColor}">${ytdVal}</td>`;
-        } else {
-            let yieldColor = 'text-accent-primary';
-            let ytdYieldColor = 'text-pink-400';
-            rowHtml += `<td class="py-4 px-6 text-center"><span class="px-3 py-1 rounded-full bg-gray-800 border border-gray-700 text-xs font-semibold tracking-widest">${etf.div_freq}</span></td>`;
-            let yieldVal = (etf.last_year_yield !== null && etf.last_year_yield !== undefined) ? `${etf.last_year_yield.toFixed(2)}%` : '-';
-            rowHtml += `<td class="py-4 px-6 font-mono font-bold text-right ${yieldColor}">${yieldVal}</td>`;
-            let ytdYieldVal = (etf.ytd_yield !== null && etf.ytd_yield !== undefined) ? `${etf.ytd_yield.toFixed(2)}%` : "-";
-            rowHtml += `<td class="py-4 px-6 font-mono font-bold text-right ${ytdYieldColor}">${ytdYieldVal}</td>`;
-            rowHtml += `<td class="py-4 px-6 font-mono font-bold text-right ${lastYearColor}">${lastYearVal}</td>`;
-            rowHtml += `<td class="py-4 px-6 font-mono font-bold text-right ${ytdColor}">${ytdVal}</td>`;
+    const isNum = (v) => v !== null && v !== undefined && !Number.isNaN(v);
+    const pct = (v) => isNum(v) ? `${v.toFixed(2)}%` : '-';
+    const signedPct = (v) => isNum(v) ? `${v > 0 ? '+' : ''}${v.toFixed(2)}%` : '-';
+    const perfColor = (v) => !isNum(v) ? 'text-ink-faint' : (v >= 0 ? 'text-danger' : 'text-success');
+    const note = (n) => n ? `<span class="block text-[10px] text-amber-400/90 font-sans font-normal leading-tight mt-0.5">${n}</span>` : '';
+
+    // 欄位順序：商品 | 股價 (當日漲跌) | 今年漲跌 | 今年累計殖利率 | 去年漲跌 | 去年殖利率 | 去年100萬
+    const th = (label, tip, align = 'text-right', extra = '') =>
+        `<th class="py-3 px-4 ${align} ${extra}" title="${tip}">${label}</th>`;
+    thead.innerHTML = '<tr>' +
+        th('商品', '商品名稱 / 代號 / 配息頻率', 'text-left', 'w-[22%]') +
+        th('股價 (當日漲跌)', '最新收盤價與當日漲跌幅', 'text-right', 'w-[17%]') +
+        th('今年漲跌', '今年迄今單純股價累計漲幅（不含息，已還原股票分割）', 'text-right', 'w-[12%]') +
+        th('今年累計殖利率', '今年度已除息各次之累計殖利率（配息 ÷ 除息前一日收盤價加總）', 'text-right', 'w-[12%] text-sky-400') +
+        th('去年漲跌', '去年全年單純股價累計漲幅（不含息，下方為去年12/31收盤價）', 'text-right', 'w-[12%]') +
+        th('去年殖利率', '去年全年度各次除息之累計殖利率（配息 ÷ 除息前一日收盤價加總）', 'text-right', 'w-[11%] text-accent-cyan') +
+        th('去年100萬', '去年初投入台幣 100 萬元持有至年底之總損益（含股價漲跌 + 實領現金股息 + 股票分割）', 'text-right', 'w-[14%] text-amber-300') +
+        '</tr>';
+
+    let rows = '';
+    etfs.forEach(etf => {
+        const freq = etf.div_freq || '-';
+        const priceStr = isNum(etf.price) ? etf.price.toFixed(2) : '-';
+        const chgStr = isNum(etf.change_percent)
+            ? `<span class="text-xs ml-1.5 ${perfColor(etf.change_percent)}">(${signedPct(etf.change_percent)})</span>` : '';
+        const lyPriceHtml = isNum(etf.last_year_close)
+            ? `<span class="block text-[11px] text-ink-faint font-mono font-normal leading-tight mt-0.5">${etf.last_year_close.toFixed(2)}</span>`
+            : '';
+
+        let profitHtml = '<span class="text-ink-faint">-</span>';
+        let profitTip = '';
+        if (isNum(etf.last_year_1m_profit)) {
+            const p = etf.last_year_1m_profit;
+            const prefix = p >= 0 ? '賺' : '賠';
+            const absWan = (Math.abs(p) / 10000).toFixed(2);
+            const absNum = Math.round(Math.abs(p)).toLocaleString('en-US');
+            const colorCls = p >= 0 ? 'text-danger' : 'text-success';
+            const pricePart = isNum(etf.last_year_1m_price_profit) ? `${etf.last_year_1m_price_profit >= 0 ? '+' : ''}${etf.last_year_1m_price_profit.toLocaleString('en-US')}` : '0';
+            const divPart = isNum(etf.last_year_1m_div_profit) ? `+${etf.last_year_1m_div_profit.toLocaleString('en-US')}` : '+0';
+            profitTip = `去年投入 100 萬：價差 ${pricePart} 元、領息 ${divPart} 元，合計${prefix} ${absNum} 元`;
+            profitHtml = `<span class="${colorCls}">${prefix} ${absWan}萬</span><span class="block text-[11px] text-ink-faint font-mono font-normal leading-tight mt-0.5">${p >= 0 ? '+' : '-'}${absNum}</span>`;
         }
-        rowHtml += '</tr>';
-        tbody.innerHTML += rowHtml;
+
+        const splitBadges = (etf.splits || []).map(s => {
+            const shortDate = (s.date || '').substring(2);
+            const tip = `${s.date} 進行 1 拆 ${s.ratio} 分割（分割前 ${s.before} 元 → 分割後 ${s.after} 元），漲跌幅已還原`;
+            return `<span class="inline-block ml-1.5 px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-sans font-medium" title="${tip}">1拆${s.ratio} (${shortDate})</span>`;
+        }).join('');
+
+        rows += `<tr class="hover:bg-white/[0.04] transition-colors">
+            <td class="py-3.5 px-4">
+                <div class="font-bold text-ink text-sm leading-tight">${etf.name}</div>
+                <div class="text-[11px] text-ink-faint font-mono mt-0.5 flex items-center flex-wrap gap-y-1">
+                    <span>${etf.symbol} · <span class="text-ink-soft">${freq}</span></span>${splitBadges}
+                </div>
+            </td>
+            <td class="py-3.5 px-4 font-mono text-right text-ink font-semibold">${priceStr}${chgStr}</td>
+            <td class="py-3.5 px-4 font-mono font-bold text-right ${perfColor(etf.ytd)}">${signedPct(etf.ytd)}</td>
+            <td class="py-3.5 px-4 font-mono font-bold text-right text-sky-400">${pct(etf.ytd_yield)}</td>
+            <td class="py-3.5 px-4 font-mono font-bold text-right ${perfColor(etf.last_year_perf)}">${signedPct(etf.last_year_perf)}${lyPriceHtml}</td>
+            <td class="py-3.5 px-4 font-mono font-bold text-right text-accent-cyan">${pct(etf.last_year_yield)}</td>
+            <td class="py-3.5 px-4 font-mono font-bold text-right" title="${profitTip}">${profitHtml}</td>
+        </tr>`;
     });
+    tbody.innerHTML = rows;
 }
 
 function renderChart(containerId, history) {
@@ -634,7 +740,7 @@ function renderChart(containerId, history) {
         values.push([item.open, item.close, item.low, item.high]);
         volumes.push({
             value: item.volume,
-            itemStyle: { color: item.close >= item.open ? '#ef4444' : '#10b981' }
+            itemStyle: { color: item.close >= item.open ? '#f87171' : '#34d399' }
         });
         ma5.push(item.ma5);
         ma10.push(item.ma10);
@@ -651,10 +757,11 @@ function renderChart(containerId, history) {
         tooltip: {
             trigger: 'axis',
             axisPointer: { type: 'cross' },
-            backgroundColor: 'rgba(23, 27, 36, 0.9)',
-            borderColor: '#374151',
-            textStyle: { color: '#e5e7eb', fontSize: 12 },
-            padding: 10
+            backgroundColor: 'rgba(28, 31, 38, 0.96)',
+            borderColor: '#3b4252',
+            textStyle: { color: '#f3f4f6', fontSize: 12 },
+            padding: 10,
+            formatter: makeEChartsTooltipFormatter('張')
         },
         grid: [
             { left: 55, right: 15, top: '5%', height: '45%' }, 
@@ -667,29 +774,29 @@ function renderChart(containerId, history) {
                 data: categoryData,
                 gridIndex: 0,
                 axisLabel: { show: false },
-                axisLine: { lineStyle: { color: '#4b5563' } }
+                axisLine: { lineStyle: { color: '#3b4252' } }
             },
             {
                 type: 'category',
                 data: categoryData,
                 gridIndex: 1,
                 axisLabel: { show: false },
-                axisLine: { lineStyle: { color: '#4b5563' } }
+                axisLine: { lineStyle: { color: '#3b4252' } }
             },
             {
                 type: 'category',
                 data: categoryData,
                 gridIndex: 2,
-                axisLabel: { color: '#9ca3af', fontSize: 10 },
-                axisLine: { lineStyle: { color: '#4b5563' } }
+                axisLabel: { color: '#8b949e', fontSize: 10 },
+                axisLine: { lineStyle: { color: '#3b4252' } }
             }
         ],
         yAxis: [
             {
                 scale: true,
                 gridIndex: 0,
-                splitLine: { show: true, lineStyle: { color: '#1f2937', type: 'dashed' } },
-                axisLabel: { color: '#9ca3af', fontSize: 10 }
+                splitLine: { show: true, lineStyle: { color: '#272c37', type: 'dashed' } },
+                axisLabel: { color: '#8b949e', fontSize: 10 }
             },
             {
                 gridIndex: 1,
@@ -713,10 +820,10 @@ function renderChart(containerId, history) {
                 xAxisIndex: 0,
                 yAxisIndex: 0,
                 itemStyle: {
-                    color: '#ef4444', 
-                    color0: '#10b981', 
-                    borderColor: '#ef4444',
-                    borderColor0: '#10b981'
+                    color: '#f87171', 
+                    color0: '#34d399', 
+                    borderColor: '#f87171',
+                    borderColor0: '#34d399'
                 }
             },
             {
@@ -764,8 +871,8 @@ function renderChart(containerId, history) {
                 smooth: false,
                 showSymbol: false,
                 connectNulls: true,
-                itemStyle: { color: '#a0522d' },
-                lineStyle: { width: 1.5, color: '#a0522d' } 
+                itemStyle: { color: '#fb923c' },
+                lineStyle: { width: 1.5, color: '#fb923c' } 
             },
             {
                 name: 'BB上軌',
@@ -776,8 +883,8 @@ function renderChart(containerId, history) {
                 smooth: false,
                 showSymbol: false,
                 connectNulls: true,
-                itemStyle: { color: '#60a5fa' },
-                lineStyle: { width: 1, type: 'dashed', color: '#60a5fa' } 
+                itemStyle: { color: '#60cdff' },
+                lineStyle: { width: 1, type: 'dashed', color: '#60cdff' } 
             },
             {
                 name: 'BB下軌',
@@ -788,8 +895,8 @@ function renderChart(containerId, history) {
                 smooth: false,
                 showSymbol: false,
                 connectNulls: true,
-                itemStyle: { color: '#60a5fa' },
-                lineStyle: { width: 1, type: 'dashed', color: '#60a5fa' } 
+                itemStyle: { color: '#60cdff' },
+                lineStyle: { width: 1, type: 'dashed', color: '#60cdff' } 
             },
             {
                 name: '成交量',
@@ -827,7 +934,7 @@ function renderChart(containerId, history) {
                 yAxisIndex: 2,
                 data: hist.map(val => ({
                     value: val,
-                    itemStyle: { color: val >= 0 ? '#ef4444' : '#10b981' }
+                    itemStyle: { color: val >= 0 ? '#f87171' : '#34d399' }
                 }))
             }
         ]
