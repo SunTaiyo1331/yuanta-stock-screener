@@ -100,25 +100,28 @@ async function fetchStockData() {
     }
 
     try {
-        const url = 'https://raw.githubusercontent.com/SunTaiyo1331/yuanta-stock-screener/main/data.json?t=' + new Date().getTime();
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        cachedData = await response.json();
+        const ts = new Date().getTime();
+        const rawUrl = 'https://raw.githubusercontent.com/SunTaiyo1331/yuanta-stock-screener/main/data.json?t=' + ts;
+        const pagesUrl = 'data.json?t=' + ts;
+
+        // 同時請求同網域 data.json 與 GitHub Raw，自動挑選 updated_at 最新的一份，避開 CDN 快取延遲
+        const results = await Promise.allSettled([
+            fetch(pagesUrl, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(new Error(r.status))),
+            fetch(rawUrl, { cache: 'no-store' }).then(r => r.ok ? r.json() : Promise.reject(new Error(r.status)))
+        ]);
+
+        const validData = results
+            .filter(r => r.status === 'fulfilled' && r.value && r.value.data)
+            .map(r => r.value);
+
+        if (validData.length === 0) {
+            throw new Error('無法從 GitHub Pages 或 GitHub Raw 取得資料');
+        }
+
+        validData.sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''));
+        cachedData = validData[0];
         onDataLoaded(false);
     } catch (error) {
-        // 本地備援：GitHub 拉不到時改讀本機 frontend/data.json
-        try {
-            console.warn("GitHub 資料來源連線中斷，改讀本地 data.json:", error.message);
-            const localResp = await fetch('data.json?t=' + new Date().getTime());
-            if (localResp.ok) {
-                cachedData = await localResp.json();
-                localStatusEl();
-                onDataLoaded(true);
-                return;
-            }
-        } catch (e2) {
-            console.warn("本地 data.json 也無法讀取 (若用 file:// 開啟請透過 開啟頁面.bat 啟動伺服器):", e2.message);
-        }
         console.error("無法載入股票資料:", error);
         document.getElementById('last-updated').textContent = `資料載入失敗 (${error.message})`;
         const loadingEl = document.getElementById('loading');

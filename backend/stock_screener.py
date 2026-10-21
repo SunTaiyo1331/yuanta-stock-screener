@@ -920,13 +920,13 @@ if __name__ == "__main__":
 
     clean_output = scrub_nans(output)
     with open(output_file, 'w', encoding='utf-8') as f:
-        json.dump(clean_output, f, ensure_ascii=False, indent=4)
+        json.dump(clean_output, f, ensure_ascii=False, separators=(',', ':'))
 
     # 同步輸出 data.js，支援直接雙擊 index.html (file://) 免伺服器讀取最新本地資料
     js_output_file = os.path.splitext(output_file)[0] + '.js'
     with open(js_output_file, 'w', encoding='utf-8') as f:
         f.write('window.__LOCAL_STOCK_DATA__ = ')
-        json.dump(clean_output, f, ensure_ascii=False)
+        json.dump(clean_output, f, ensure_ascii=False, separators=(',', ':'))
         f.write(';\n')
 
     print(f"分析完成！茶葉:{len(data['tea'])} 止月:{len(data['moon'])} 50大:{len(data['fifty'])}")
