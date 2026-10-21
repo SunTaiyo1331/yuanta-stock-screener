@@ -694,11 +694,17 @@ function renderETFTable(strategy, etfs, theadId, tbodyId) {
             return `<span class="inline-block ml-1.5 px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-sans font-medium" title="${tip}">1拆${s.ratio} (${shortDate})</span>`;
         }).join('');
 
+        const listingBadge = etf.listing_date ? (() => {
+            const shortDate = etf.listing_date.substring(2);
+            const tip = `${etf.listing_date} 掛牌上市${etf.last_year_perf === null ? '（今年新上市，故無去年資料）' : '（去年績效自上市日起算）'}`;
+            return `<span class="inline-block ml-1.5 px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 text-[10px] font-sans font-medium" title="${tip}">上市 (${shortDate})</span>`;
+        })() : '';
+
         rows += `<tr class="hover:bg-white/[0.04] transition-colors">
             <td class="py-3.5 px-4">
                 <div class="font-bold text-ink text-sm leading-tight">${etf.name}</div>
                 <div class="text-[11px] text-ink-faint font-mono mt-0.5 flex items-center flex-wrap gap-y-1">
-                    <span>${etf.symbol} · <span class="text-ink-soft">${freq}</span></span>${splitBadges}
+                    <span>${etf.symbol} · <span class="text-ink-soft">${freq}</span></span>${splitBadges}${listingBadge}
                 </div>
             </td>
             <td class="py-3.5 px-4 font-mono text-right text-ink font-semibold">${priceStr}${chgStr}</td>
