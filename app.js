@@ -6,10 +6,60 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchStockData();
 });
 
+function getTodayStr() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
+function getUpdateStatus() {
+    const updatedAt = (cachedData && cachedData.updated_at) ? cachedData.updated_at : '';
+    const updatedDate = updatedAt ? updatedAt.substring(0, 10) : '';
+    const todayStr = getTodayStr();
+    let diffDays = 0;
+    if (updatedDate) {
+        const d1 = new Date(todayStr + 'T00:00:00');
+        const d2 = new Date(updatedDate + 'T00:00:00');
+        diffDays = Math.round((d1 - d2) / 86400000);
+    }
+    const isUpdatedToday = updatedDate === todayStr;
+    return { updatedAt, updatedDate, todayStr, diffDays, isUpdatedToday };
+}
+
+function buildUpdateBadgeHtml(dataDate) {
+    const { updatedAt, todayStr, diffDays, isUpdatedToday } = getUpdateStatus();
+    if (!updatedAt) return '';
+
+    const dataDateHtml = dataDate
+        ? `<span class="ml-2 pl-2 border-l border-white/15 ${dataDate < todayStr ? 'text-amber-300' : 'text-ink-soft'}">行情基準日：<b class="font-mono">${dataDate}</b></span>`
+        : '';
+
+    if (isUpdatedToday) {
+        return `<div class="inline-flex items-center flex-wrap gap-y-1 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-xs font-mono text-emerald-300 shadow-sm">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-pulse"></span>
+            <span>今日已更新：<b>${updatedAt}</b></span>
+            ${dataDateHtml}
+        </div>`;
+    } else {
+        const agoText = diffDays > 0 ? `（距今 ${diffDays} 天前，請記得執行更新！）` : '';
+        return `<div class="inline-flex items-center flex-wrap gap-y-1 px-3 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/40 text-xs font-mono text-amber-300 shadow-sm">
+            <span class="mr-1.5">⚠️ 尚未更新今日資料</span>
+            <span>上次更新：<b>${updatedAt}</b>${agoText}</span>
+            ${dataDateHtml}
+        </div>`;
+    }
+}
+
 function onDataLoaded(isLocal) {
     if (cachedData.updated_at) {
-        document.getElementById('last-updated').textContent =
-            `最後更新時間：${cachedData.updated_at}${isLocal ? '（本地資料）' : ''}`;
+        const { updatedAt, diffDays, isUpdatedToday } = getUpdateStatus();
+        const navEl = document.getElementById('last-updated');
+        if (isUpdatedToday) {
+            navEl.className = "shrink-0 text-[11px] font-mono px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-emerald-300";
+            navEl.textContent = `🟢 最後更新：${updatedAt}${isLocal ? '（本地）' : ''}`;
+        } else {
+            navEl.className = "shrink-0 text-[11px] font-mono px-2.5 py-1 rounded-md bg-amber-500/15 border border-amber-500/40 text-amber-300 font-semibold";
+            navEl.textContent = `⚠️ 舊資料：${updatedAt}${diffDays > 0 ? ` (${diffDays}天前)` : ''}`;
+        }
     }
     document.getElementById('loading').classList.add('hidden');
     renderIndices(cachedData.data.indices);
@@ -122,6 +172,15 @@ function renderIndices(indices) {
     if (!indices || indices.length === 0) return;
     const ticker = document.getElementById('indices-ticker');
     ticker.innerHTML = '';
+
+    const taiexIdx = indices.find(i => i.symbol === '^TWII' || i.name === '台股加權指數');
+    const taiexDate = (taiexIdx && taiexIdx.history && taiexIdx.history.length > 0)
+        ? taiexIdx.history[taiexIdx.history.length - 1].date
+        : null;
+    const marketBadgeEl = document.getElementById('market-update-badge');
+    if (marketBadgeEl) {
+        marketBadgeEl.innerHTML = buildUpdateBadgeHtml(taiexDate);
+    }
     
     let html = '';
     indices.forEach(idx => {
@@ -522,6 +581,20 @@ function renderStrategyData(strategy) {
     };
     
     document.getElementById('screener-title').textContent = titles[strategy] || strategy;
+
+    // 計算該頁籤資料的行情基準日，連同最後更新時間顯示在每一頁右上角
+    let tabDataDate = null;
+    if (strategy === 'etf') {
+        const allEtfs = [...(cachedData.data['long_etf'] || []), ...(cachedData.data['high_div'] || [])];
+        if (allEtfs.length > 0) tabDataDate = allEtfs[0].date || null;
+    } else {
+        const list = cachedData.data[strategy] || [];
+        if (list.length > 0) tabDataDate = list[0].date || null;
+    }
+    const screenerBadgeEl = document.getElementById('screener-update-badge');
+    if (screenerBadgeEl) {
+        screenerBadgeEl.innerHTML = buildUpdateBadgeHtml(tabDataDate);
+    }
     
     const grid = document.getElementById('stock-grid');
     const emptyState = document.getElementById('empty-state');
@@ -586,7 +659,7 @@ function renderStocks(stocks) {
         const card = clone.querySelector('.stock-card');
         
         clone.querySelector('.stock-name').textContent = stock.name;
-        clone.querySelector('.stock-symbol').textContent = stock.symbol;
+        clone.querySelector('.stock-symbol').textContent = stock.date ? `${stock.symbol} · 行情日 ${stock.date}` : stock.symbol;
         
         const formatPrice = (num) => (num !== null && num !== undefined) ? new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(num) : '-';
         clone.querySelector('.stock-price').textContent = formatPrice(stock.price);
