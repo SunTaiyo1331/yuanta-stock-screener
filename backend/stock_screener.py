@@ -388,7 +388,13 @@ def _twse_realtime_quotes(symbols):
                     return float(q.get(k))
                 except (TypeError, ValueError):
                     return None
-            close = _num('z') or _num('pz')
+            trade_z = None
+            if isinstance(q.get('trade'), dict):
+                try:
+                    trade_z = float(q['trade'].get('z'))
+                except (TypeError, ValueError):
+                    trade_z = None
+            close = _num('z') or _num('pz') or trade_z
             if close is None:
                 continue
             out[q['c']] = {
@@ -434,15 +440,16 @@ def _infer_div_freq(div_dates):
 
 
 def process_etfs():
-    long_etf_symbols = ['0050', '006208', '00631L', '00981A', '0052', '009816']
+    long_etf_symbols = ['0050', '006208', '00631L', '00981A', '0052', '00662', '009816']
     high_div_etf_symbols = ['0056', '00878', '00919', '00929']
 
     # 僅用於「設計上不配息」的 ETF；其餘頻率依實際除息紀錄自動推估
-    freq_override = {'00631L': '不配息', '009816': '不配息'}
+    freq_override = {'00631L': '不配息', '009816': '不配息', '00662': '不配息'}
 
     ch_names = {
         '0050': '元大台灣50', '006208': '富邦台50', '00631L': '元大台灣50正2',
-        '00981A': '主動統一台股增長', '0052': '富邦科技', '009816': '凱基台灣TOP50',
+        '00981A': '主動統一台股增長', '0052': '富邦科技', '00662': '富邦NASDAQ',
+        '009816': '凱基台灣TOP50',
         '0056': '元大高股息', '00878': '國泰永續高股息',
         '00919': '群益台灣精選高息', '00929': '復華台灣科技優息'
     }
