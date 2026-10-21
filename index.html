@@ -89,7 +89,7 @@
             </nav>
 
             <!-- 更新時間 -->
-            <div id="last-updated" class="hidden lg:block shrink-0 text-[11px] text-ink-faint font-mono">
+            <div id="last-updated" class="shrink-0 text-[11px] text-ink-faint font-mono">
                 最後更新：載入中
             </div>
         </div>
@@ -117,7 +117,16 @@
         </div>
 
         <!-- TAB 1: 大盤與指數視圖 (Market View) -->
-        <div id="view-market" class="space-y-10 hidden animate-fade-in">
+        <div id="view-market" class="space-y-8 hidden animate-fade-in">
+            <!-- 大盤頁籤專屬更新時間狀態列 -->
+            <div class="flex items-center justify-between border-b border-card-border pb-4 flex-wrap gap-3">
+                <div>
+                    <h2 class="text-2xl sm:text-3xl font-bold tracking-tight text-ink">全球與台股大盤指數</h2>
+                    <p class="mt-1 text-sm text-ink-soft">主要市場指數即時報價與 K 線趨勢</p>
+                </div>
+                <div id="market-update-badge"></div>
+            </div>
+
             <!-- 全球指數速覽 -->
             <div id="indices-ticker" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
                 <!-- 指數卡片由 JS 動態生成 -->
@@ -152,7 +161,7 @@
 
         <!-- 選股 / ETF 區塊視圖 (Screener Views) -->
         <div id="view-screener" class="hidden space-y-6 animate-fade-in">
-            <div class="flex items-center justify-between border-b border-card-border pb-4">
+            <div class="flex items-center justify-between border-b border-card-border pb-4 flex-wrap gap-3">
                 <div>
                     <h2 id="screener-title" class="text-2xl sm:text-3xl font-bold tracking-tight text-ink">
                         策略結果
@@ -161,6 +170,7 @@
                         即時篩選指標與市場回測統計
                     </p>
                 </div>
+                <div id="screener-update-badge"></div>
             </div>
 
             <!-- 股票列表 Grid -->
@@ -264,7 +274,7 @@
         </div>
     </template>
 
-    <script src="data.js?v=31"></script>
-    <script src="app.js?v=31"></script>
+    <script src="data.js?v=32"></script>
+    <script src="app.js?v=32"></script>
 </body>
 </html>
